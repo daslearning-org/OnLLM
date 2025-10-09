@@ -6,6 +6,23 @@ __pycache__/
 # C extensions
 *.so
 
+# kivy
+.buildozer/
+logs/
+bin/
+dist/
+build/
+*.apk
+*.exe
+
+# local folders / files
+*.onnx
+*.mp4
+*.pdf
+*.doc
+*.docx
+*.db
+
 # Distribution / packaging
 .Python
 build/
