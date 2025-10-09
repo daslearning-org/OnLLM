@@ -1,0 +1,11 @@
+# main_layout.kv
+#:import MDScreenManager kivymd.uix.screenmanager.MDScreenManager
+
+# Include your other KV files
+#:import ChatbotScreen screens.chatbot_screen.ChatbotScreen
+
+# Define the ScreenManager as the root widget
+MDScreenManager:
+    # Add your screens here as children of the ScreenManager
+    ChatbotScreen:
+        id: chatbot_scr
