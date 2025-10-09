@@ -17,6 +17,7 @@ from kivy.core.window import Window
 from kivy.metrics import dp, sp
 from kivy.utils import platform
 from kivy.core.clipboard import Clipboard
+from kivy.clock import Clock
 if platform == "android":
     from jnius import autoclass
 
@@ -30,13 +31,14 @@ from kivymd.uix.button import MDFlatButton, MDFloatingActionButton
 # app brains
 import numpy as np
 from onnxruntime import InferenceSession
+from tokenizers import Tokenizer
 
 # other public modules
 from m2r2 import convert
 
 # local imports
 from myrst import MyRstDocument
-from screens.chatbot_screen import TempSpinWait
+from screens.chatbot_screen import TempSpinWait, ChatbotScreen
 
 # IMPORTANT: Set this property for keyboard behavior
 Window.softinput_mode = "below_target"
@@ -58,14 +60,15 @@ kv_file_path = os.path.join(base_path, 'main_layout.kv')
 class OnLlmApp(MDApp):
     is_downloading = ObjectProperty(None)
     llm_menu = ObjectProperty()
+    tmp_txt = ObjectProperty()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         #Window.bind(on_keyboard=self.events)
         self.process = None
-        self.sess = None
+        self.decoder_session = None
         self.selected_llm = ""
-        self.messages = [{"role": "system", "content": "You are a helpful assistant."}]
+        self.messages = []
 
     def build(self):
         self.theme_cls.primary_palette = "Blue"
@@ -95,7 +98,7 @@ class OnLlmApp(MDApp):
         return Builder.load_file(kv_file_path)
 
     def on_start(self):
-        self.llm_models = ["gemma3-1b"]
+        self.llm_models = ["gemma3-1B"]
         if platform == "android":
             # paths on android
             context = autoclass('org.kivy.android.PythonActivity').mActivity
@@ -118,7 +121,6 @@ class OnLlmApp(MDApp):
         os.makedirs(self.model_dir, exist_ok=True)
         os.makedirs(self.op_dir, exist_ok=True)
         os.makedirs(config_dir, exist_ok=True)
-        self.gemma_model_path = os.path.join(self.model_dir, "gemma3-1B")
         # hamburger menu
         menu_items = [
             {
@@ -159,7 +161,8 @@ class OnLlmApp(MDApp):
             self.llm_menu.items = []
             self.selected_llm = "None"
             self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
-        print("Initialization is successful")
+        self.init_onnx_sess()
+        print("Initialisation is successful")
 
     def show_toast_msg(self, message, is_error=False, duration=3):
         from kivymd.uix.snackbar import MDSnackbar
@@ -213,7 +216,7 @@ class OnLlmApp(MDApp):
                     text="Releases",
                     theme_text_color="Custom",
                     text_color="green",
-                    on_release=self.update_checker # TBA
+                    on_release=self.update_checker
                 ),
             ]
             self.show_text_dialog(
@@ -222,7 +225,13 @@ class OnLlmApp(MDApp):
                 buttons
             )
 
-    def add_bot_message(self, instance, msg_to_add):
+    def llm_menu_callback(self, text_item):
+        self.llm_menu.dismiss()
+        self.selected_llm = text_item
+        self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
+        self.init_onnx_sess(self.selected_llm)
+
+    def add_bot_message(self, msg_to_add):
         # Adds the Bot msg into chat history
         rst_txt = convert(msg_to_add)
         bot_msg_label = MyRstDocument(
@@ -282,18 +291,124 @@ class OnLlmApp(MDApp):
             )
             self.add_usr_message(user_message_add)
             chat_input_widget.text = "" # blank the input
-            self.tmp_spin = TempSpinWait()
-            self.chat_history_id.add_widget(self.tmp_spin)
-            ollama_thread = Thread(target=chat_with_llm, args=(self.messages[-3:]), daemon=True) #TBA
+            self.tmp_txt = MDLabel(
+                size_hint_y=None,
+                #markup=True,
+                halign='left',
+                valign='top',
+                padding=[dp(10), dp(10)],
+                font_style="Subtitle1",
+                allow_selection = True,
+                allow_copy = True,
+                text = "",
+            )
+            self.tmp_txt.bind(texture_size=self.tmp_txt.setter('size'))
+            self.chat_history_id.add_widget(self.tmp_txt)
+            msg_to_send = [{"role": "system", "content": "You are a helpful assistant."}]
+            msg_to_send.extend(self.messages[-3:]) # taking last three messages only
+            ollama_thread = Thread(target=self.chat_with_llm, args=(msg_to_send,), daemon=True)
             ollama_thread.start()
             self.is_llm_running = True
         else:
             self.show_toast_msg("Please type a message!", is_error=True)
 
-    def llm_menu_callback(self, text_item):
-        self.llm_menu.dismiss()
-        self.selected_llm = text_item
-        self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
+    def init_onnx_sess(self, llm="gemma3-1B"):
+        path_to_model = os.path.join(self.model_dir, llm)
+        try:
+            # Load config with json
+            with open(f"{path_to_model}/config.json", "r") as f:
+                config_data = json.load(f)
+            # Extract needed values (same as before)
+            self.num_key_value_heads = config_data["num_key_value_heads"]
+            self.head_dim = config_data["head_dim"]
+            self.num_hidden_layers = config_data["num_hidden_layers"]
+            # Load tokenizer from tokenizer.json
+            self.tokenizer = Tokenizer.from_file(f"{path_to_model}/tokenizer.json")
+            # Get EOS token ID dynamically
+            self.eos_token_id = self.tokenizer.token_to_id("<end_of_turn>")
+            self.decoder_session = InferenceSession(f"{path_to_model}/onnx/model_int8.onnx")
+            self.process = True
+        except Exception as e:
+            print(f"Onnx init error: {e}")
+
+    def chat_with_llm(self, messages, add_generation_prompt=True, return_tensors="np"):
+        if not self.process:
+            self.is_llm_running = False
+            Clock.schedule_once(lambda dt: self.show_toast_msg("Onnx Session is not ready", is_error=True))
+            return
+        prompt = "<bos>"  # BOS always starts
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"].strip()  # Strip for cleanliness
+            if role == "system":
+                prompt += f"<start_of_turn>system\n{content}<end_of_turn>\n"
+            elif role == "user":
+                prompt += f"<start_of_turn>user\n{content}<end_of_turn>\n"
+            elif role == "assistant" or role == "model":
+                prompt += f"<start_of_turn>model\n{content}<end_of_turn>\n"
+        if add_generation_prompt:
+            prompt += "<start_of_turn>model\n"
+        final_result = {"role": "init", "content": "**Initials** in LLM response!"}
+        try:
+            # Tokenize (encode to IDs)
+            encoding = self.tokenizer.encode(prompt, add_special_tokens=False)  # False to avoid extra BOS if already added
+            token_ids = encoding.ids
+            if return_tensors == "np":
+                input_ids = np.array([token_ids], dtype=np.int64)  # Batch size 1
+            else:
+                input_ids = np.array(token_ids, dtype=np.int64)
+            ## Prepare decoder inputs (same)
+            batch_size = input_ids.shape[0]
+            past_key_values = {
+                f'past_key_values.{layer}.{kv}': np.zeros([batch_size, self.num_key_value_heads, 0, self.head_dim], dtype=np.float32)
+                for layer in range(self.num_hidden_layers)
+                for kv in ('key', 'value')
+            }
+            position_ids = np.tile(np.arange(1, input_ids.shape[-1] + 1), (batch_size, 1))
+            max_new_tokens = 1024
+            generated_tokens = np.array([[]], dtype=np.int64)
+            for i in range(max_new_tokens):
+                logits, *present_key_values = self.decoder_session.run(None, dict(
+                    input_ids=input_ids,
+                    position_ids=position_ids,
+                    **past_key_values,
+                ))
+
+                ## Update values for next generation loop
+                input_ids = np.argmax(logits[:, -1], axis=-1, keepdims=True)  # Fixed: np.argmax for array
+                position_ids = position_ids[:, -1:] + 1
+                for j, key in enumerate(past_key_values):
+                    past_key_values[key] = present_key_values[j]
+
+                generated_tokens = np.concatenate([generated_tokens, input_ids], axis=-1)
+                if (input_ids == self.eos_token_id).all():
+                    break
+
+                ## (Optional) Streaming (use tokenizer.decode)
+                txt_update = self.tokenizer.decode(input_ids[0].tolist())
+                Clock.schedule_once(lambda dt: self.update_text_stream(txt_update))
+            # final result
+            final_txt = [self.tokenizer.decode(ids.tolist()) for ids in generated_tokens]
+            final_txt = final_txt[0]
+            final_result["content"] = final_txt
+            final_result["role"] = "assistant"
+        except Exception as e:
+            print(f"Chat error: {e}")
+            final_result["content"] = f"**Error** with LLM: {e}"
+            final_result["role"] = "error"
+        Clock.schedule_once(lambda dt: self.final_llm_result(final_result))
+
+    def update_text_stream(self, txt_update):
+        if self.tmp_txt:
+            self.tmp_txt.text = self.tmp_txt.text + " " + txt_update
+
+    def final_llm_result(self, llm_resp):
+        if llm_resp["role"] == "assistant":
+            self.messages.append(llm_resp)
+        self.is_llm_running = False
+        txt = llm_resp["content"]
+        self.chat_history_id.remove_widget(self.tmp_txt)
+        self.add_bot_message(msg_to_add=txt)
 
     def update_chatbot_welcome(self, screen_instance):
         print("we are in...")
