@@ -314,6 +314,11 @@ class OnLlmApp(MDApp):
 
     def init_onnx_sess(self, llm="gemma3-1B"):
         path_to_model = os.path.join(self.model_dir, llm)
+        providers = [
+            'NNAPIExecutionProvider',
+            'XNNPACKExecutionProvider',
+            'CPUExecutionProvider',
+        ]
         try:
             # Load config with json
             with open(f"{path_to_model}/config.json", "r") as f:
@@ -326,7 +331,7 @@ class OnLlmApp(MDApp):
             self.tokenizer = Tokenizer.from_file(f"{path_to_model}/tokenizer.json")
             # Get EOS token ID dynamically
             self.eos_token_id = self.tokenizer.token_to_id("<end_of_turn>")
-            self.decoder_session = InferenceSession(f"{path_to_model}/onnx/model_int8.onnx")
+            self.decoder_session = InferenceSession(f"{path_to_model}/onnx/model_int8.onnx", providers=providers)
             self.process = True
         except Exception as e:
             print(f"Onnx init error: {e}")
