@@ -1,0 +1,9 @@
+kivymd==1.2.0
+kivy[base]==2.3.1
+buildozer==1.5.0
+Cython==0.29.36
+m2r2
+numpy
+opencv-python
+onnxruntime
+tokenizers
