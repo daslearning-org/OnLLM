@@ -315,8 +315,8 @@ class OnLlmApp(MDApp):
     def init_onnx_sess(self, llm="gemma3-1B"):
         path_to_model = os.path.join(self.model_dir, llm)
         android_providers = [
-            'NNAPIExecutionProvider',
-            'XNNPACKExecutionProvider',
+            'NnapiExecutionProvider',
+            'XnnpackExecutionProvider',
             'CPUExecutionProvider',
         ]
         desktop_providers = [
