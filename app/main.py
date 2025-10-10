@@ -93,7 +93,12 @@ class OnLlmApp(MDApp):
                 "icon": "github",
                 "action": "update",
                 "url": "",
-            }
+            },
+            "Try Other Apps": {
+                "icon": "google-play",
+                "action": "web",
+                "url": "https://daslearning.in/apps/",
+            },
         }
         return Builder.load_file(kv_file_path)
 
@@ -132,7 +137,6 @@ class OnLlmApp(MDApp):
         ]
         self.top_menu = MDDropdownMenu(
             items=menu_items,
-            width_mult=4,
         )
         self.is_llm_running = False
         ## the chatbot thing
