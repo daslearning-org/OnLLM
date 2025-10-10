@@ -56,6 +56,30 @@ else:
     base_path = os.path.dirname(os.path.abspath(__file__))
 kv_file_path = os.path.join(base_path, 'main_layout.kv')
 
+## debug
+def check_nnapi_support():
+    # Get Android classes
+    has_nnapi = False
+    Build = autoclass('android.os.Build')
+    VERSION = autoclass('android.os.Build$VERSION')
+    ActivityManager = autoclass('android.app.ActivityManager')
+    PythonActivity = autoclass('org.kivy.android.PythonActivity')
+    context = PythonActivity.mActivity
+
+    # Print device info
+    print(f"Device: {Build.MANUFACTURER} {Build.MODEL}")
+    print(f"Android version: {VERSION.RELEASE}")
+
+    # Optional: print available accelerators (requires Android 11+)
+    try:
+        has_nnapi = context.getPackageManager().hasSystemFeature("android.hardware.neuralnetworks")
+        print(f"NNAPI feature present: {has_nnapi}")
+        NeuralNetworks = autoclass("android.hardware.neuralnetworks.NeuralNetworks")
+        print("NNAPI NDK present.")
+    except Exception as e:
+        print(f"NNAPI NDK not found: {e}")
+    return has_nnapi
+
 ## The KivyMD app
 class OnLlmApp(MDApp):
     is_downloading = ObjectProperty(None)
@@ -167,6 +191,9 @@ class OnLlmApp(MDApp):
             self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
         self.init_onnx_sess()
         print("Initialisation is successful")
+        if platform == "android":
+            nnapi = check_nnapi_support()
+            self.show_toast_msg(f"NNAPI: {nnapi}")
 
     def show_toast_msg(self, message, is_error=False, duration=3):
         from kivymd.uix.snackbar import MDSnackbar
@@ -319,7 +346,7 @@ class OnLlmApp(MDApp):
     def init_onnx_sess(self, llm="gemma3-1B"):
         path_to_model = os.path.join(self.model_dir, llm)
         android_providers = [
-            'NnapiExecutionProvider',
+            #'NnapiExecutionProvider',
             'XnnpackExecutionProvider',
             'CPUExecutionProvider',
         ]
