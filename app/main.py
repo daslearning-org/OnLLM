@@ -314,10 +314,14 @@ class OnLlmApp(MDApp):
 
     def init_onnx_sess(self, llm="gemma3-1B"):
         path_to_model = os.path.join(self.model_dir, llm)
-        providers = [
+        android_providers = [
             'NNAPIExecutionProvider',
             'XNNPACKExecutionProvider',
             'CPUExecutionProvider',
+        ]
+        desktop_providers = [
+            'CUDAExecutionProvider',
+            'CPUExecutionProvider'
         ]
         try:
             # Load config with json
@@ -331,7 +335,11 @@ class OnLlmApp(MDApp):
             self.tokenizer = Tokenizer.from_file(f"{path_to_model}/tokenizer.json")
             # Get EOS token ID dynamically
             self.eos_token_id = self.tokenizer.token_to_id("<end_of_turn>")
-            self.decoder_session = InferenceSession(f"{path_to_model}/onnx/model_int8.onnx", providers=providers)
+            if platform == "android":
+                self.decoder_session = InferenceSession(f"{path_to_model}/onnx/model_int8.onnx", providers=android_providers)
+            else:
+                self.decoder_session = InferenceSession(f"{path_to_model}/onnx/model_int8.onnx", providers=desktop_providers)
+            print("Using:", self.decoder_session.get_providers())
             self.process = True
         except Exception as e:
             print(f"Onnx init error: {e}")
