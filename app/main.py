@@ -31,7 +31,8 @@ from kivymd.uix.button import MDFlatButton, MDFloatingActionButton
 # app brains
 import numpy as np
 from onnxruntime import InferenceSession
-from transformers import AutoConfig, AutoTokenizer
+from transformers.models.auto.tokenization_auto import AutoTokenizer
+from transformers.models.auto.configuration_auto import AutoConfig
 
 # other public modules
 from m2r2 import convert
