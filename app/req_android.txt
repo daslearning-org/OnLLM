@@ -4,6 +4,5 @@ buildozer==1.5.0
 Cython==0.29.36
 m2r2
 numpy
-opencv-python
 onnxruntime
 tokenizers
