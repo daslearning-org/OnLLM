@@ -329,8 +329,7 @@ class OnLlmApp(MDApp):
             'CUDAExecutionProvider',
             'CPUExecutionProvider'
         ]
-        #try:
-        if path_to_model:
+        try:
             # Load config & token jsons
             config_data = AutoConfig.from_pretrained(path_to_model)
             self.tokenizer = AutoTokenizer.from_pretrained(path_to_model)
@@ -346,8 +345,9 @@ class OnLlmApp(MDApp):
                 self.decoder_session = InferenceSession(f"{path_to_model}/onnx/model_int8.onnx", providers=desktop_providers)
             print("Using:", self.decoder_session.get_providers())
             self.process = True
-        #except Exception as e:
-        #    print(f"Onnx init error: {e}")
+        except Exception as e:
+            print(f"Onnx init error: {e}")
+            self.show_toast_msg(f"Onnx init error: {e}", is_error=True)
 
     def sample_logits(self, logits, temperature=0.7, top_p=0.9):
         logits = logits / max(temperature, 1e-5)  # Avoid division by zero
