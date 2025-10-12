@@ -31,8 +31,7 @@ from kivymd.uix.button import MDFlatButton, MDFloatingActionButton
 # app brains
 import numpy as np
 from onnxruntime import InferenceSession
-from transformers.models.auto.tokenization_auto import AutoTokenizer
-from transformers.models.auto.configuration_auto import AutoConfig
+from tokenizers import Tokenizer
 
 # other public modules
 from m2r2 import convert
@@ -320,8 +319,46 @@ class OnLlmApp(MDApp):
         else:
             self.show_toast_msg("Please type a message!", is_error=True)
 
+    def apply_chat_template(self, messages, add_generation_prompt=False, tokenize=True, return_tensors="np"):
+        prompt = ""  # no initials
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"].strip()  # Strip for cleanliness
+            if role == "system":
+                prompt += f"<|im_start|>system\n{content}<|im_end|>\n"
+            elif role == "user":
+                prompt += f"<|im_start|>user\n{content}<|im_end|>\n"
+            elif role == "assistant" or role == "model":
+                prompt += f"<|im_start|>assistant\n{content}<|im_end|>\n"
+
+        if add_generation_prompt:
+            prompt += "<|im_start|>assistant\n"
+
+        if not tokenize:
+            return prompt
+
+        # Tokenize (encode to IDs)
+        encoding = self.tokenizer.encode(prompt, add_special_tokens=False)  # False to avoid extra BOS if already added
+        token_ids = encoding.ids
+
+        if return_tensors == "np":
+            input_ids = np.array([token_ids], dtype=np.int64)  # Batch size 1
+        else:
+            input_ids = np.array(token_ids, dtype=np.int64)
+
+        # Return dict like HF (only input_ids, as in your code)
+        return {"input_ids": input_ids}
+
     def init_onnx_sess(self, llm="smollm2-135m"):
         path_to_model = os.path.join(self.model_dir, llm)
+        arm_android = False
+        try:
+            import platform as corept
+            cpu_arch = corept.machine()
+            if 'arm' in cpu_arch.lower() or 'aarch' in cpu_arch.lower():
+                arm_android = True
+        except Exception as e:
+            print(f"Error in CPU architecture check: {e}")
         android_providers = [
             'XnnpackExecutionProvider',
             'CPUExecutionProvider',
@@ -332,15 +369,16 @@ class OnLlmApp(MDApp):
         ]
         try:
             # Load config & token jsons
-            config_data = AutoConfig.from_pretrained(path_to_model)
-            self.tokenizer = AutoTokenizer.from_pretrained(path_to_model)
-            # Extract needed values (same as before)
-            self.num_key_value_heads = config_data.num_key_value_heads
-            self.head_dim = config_data.head_dim
-            self.num_hidden_layers = config_data.num_hidden_layers
-            # Get EOS token ID dynamically
-            self.eos_token_id = self.tokenizer.eos_token_id
-            if platform == "android":
+            # Load config with json
+            with open(f"{path_to_model}/config.json", "r") as f:
+                config_data = json.load(f)
+            self.tokenizer = Tokenizer.from_file(f"{path_to_model}/tokenizer.json")
+            self.num_key_value_heads = config_data["num_key_value_heads"]
+            self.head_dim = config_data["head_dim"]
+            self.num_hidden_layers = config_data["num_hidden_layers"]
+            self.eos_token_id = self.tokenizer.token_to_id("<|im_end|>")
+
+            if platform == "android" or arm_android:
                 self.decoder_session = InferenceSession(f"{path_to_model}/onnx/model_int8.onnx", providers=android_providers)
             else:
                 self.decoder_session = InferenceSession(f"{path_to_model}/onnx/model_int8.onnx", providers=desktop_providers)
@@ -365,7 +403,7 @@ class OnLlmApp(MDApp):
         next_token = np.random.choice(len(probs[0]), p=probs[0])
         return np.array([[next_token]])
 
-    def chat_with_llm(self, messages, add_generation_prompt=True, return_tensors="np"):
+    def chat_with_llm(self, messages):
         if not self.process:
             self.is_llm_running = False
             Clock.schedule_once(lambda dt: self.show_toast_msg("Onnx Session is not ready", is_error=True))
@@ -374,7 +412,7 @@ class OnLlmApp(MDApp):
         final_result = {"role": "init", "content": "Chat initial"}
         final_txt = ""
         try:
-            inputs = self.tokenizer.apply_chat_template(messages, add_generation_prompt=True, tokenize=True, return_dict=True, return_tensors="np")
+            inputs = self.apply_chat_template(messages, add_generation_prompt=True, tokenize=True, return_tensors="np")
             input_token_count = inputs['input_ids'].shape[-1]
             print(f"Input token count: {input_token_count}")
             ## Prepare decoder inputs
@@ -388,7 +426,7 @@ class OnLlmApp(MDApp):
             attention_mask = np.ones_like(input_ids, dtype=np.int64)
             position_ids = np.tile(np.arange(0, input_ids.shape[-1]), (batch_size, 1))
             max_new_tokens = int(self.token_count)
-            generated_tokens = input_ids
+            #generated_tokens = input_ids
             for i in range(max_new_tokens):
                 logits, *present_key_values = self.decoder_session.run(None, dict(
                     input_ids=input_ids,
