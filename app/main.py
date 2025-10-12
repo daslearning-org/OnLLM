@@ -376,6 +376,7 @@ class OnLlmApp(MDApp):
         try:
             inputs = self.tokenizer.apply_chat_template(messages, add_generation_prompt=True, tokenize=True, return_dict=True, return_tensors="np")
             input_token_count = inputs['input_ids'].shape[-1]
+            print(f"Input token count: {input_token_count}")
             ## Prepare decoder inputs
             input_ids = inputs['input_ids']
             batch_size = inputs['input_ids'].shape[0]
@@ -415,6 +416,7 @@ class OnLlmApp(MDApp):
             # final result
             final_result["content"] = final_txt
             final_result["role"] = "assistant"
+            print(f"Final text: {final_txt}")
         except Exception as e:
             print(f"Chat error: {e}")
             final_result["content"] = f"**Error** with LLM: {e}"
