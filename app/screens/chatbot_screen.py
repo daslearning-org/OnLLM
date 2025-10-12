@@ -6,7 +6,7 @@ from kivymd.uix.label import MDLabel
 from kivymd.uix.spinner import MDSpinner
 from kivymd.uix.textfield import MDTextField
 from kivymd.uix.dropdownitem import MDDropDownItem
-from kivymd.uix.button import MDIconButton, MDFillRoundFlatButton
+from kivymd.uix.button import MDIconButton, MDFillRoundFlatButton, MDFillRoundFlatIconButton
 
 from kivy.uix.widget import Widget
 from kivy.lang import Builder
@@ -46,10 +46,16 @@ Builder.load_string('''
 
             MDDropDownItem:
                 md_bg_color: "#bdc6b0"
-                #pos_hint: {"center_x": .5, "center_y": .7}
                 on_release: app.llm_menu.open()
                 text: "Choose Model"
                 id: llm_menu
+                font_size: sp(14)
+
+            MDDropDownItem:
+                md_bg_color: "#bdc6b0"
+                on_release: app.token_menu.open()
+                text: "Length"
+                id: token_menu
                 font_size: sp(14)
 
             Widget:
@@ -90,9 +96,10 @@ Builder.load_string('''
                 input_type: 'text'
                 keyboard_suggestions: True
                 font_size: sp(16)
-            MDFillRoundFlatButton:
+            MDFillRoundFlatIconButton:
                 id: send_msg_button
-                text: "Send"
+                icon: "send"
+                text: "Go"
                 size_hint_x: 0.2
                 size_hint_y: 1
                 font_size: sp(16)

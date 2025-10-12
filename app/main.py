@@ -39,6 +39,7 @@ from m2r2 import convert
 # local imports
 from myrst import MyRstDocument
 from screens.chatbot_screen import TempSpinWait, ChatbotScreen
+from screens.welcome import WelcomeScreen
 
 # IMPORTANT: Set this property for keyboard behavior
 Window.softinput_mode = "below_target"
@@ -106,7 +107,12 @@ class OnLlmApp(MDApp):
         return Builder.load_file(kv_file_path)
 
     def on_start(self):
-        self.llm_models = ["smollm2-135m"]
+        self.llm_models = [
+            {
+                "name": "smollm2-135m",
+                "url": "https://github.com/daslearning-org/OnLLM/releases/download/vOnnxModels/smollm2-135m.tar.gz"
+            }
+        ]
         if platform == "android":
             # paths on android
             context = autoclass('org.kivy.android.PythonActivity').mActivity
@@ -145,14 +151,26 @@ class OnLlmApp(MDApp):
         ## the chatbot thing
         self.chat_history_id = self.root.ids.chatbot_scr.ids.chat_history_id
         self.chat_history_id.background_color = self.theme_cls.bg_normal
-        menu_items = [
-            {
+        menu_items = []
+        for model in self.llm_models:
+            model_name = model["name"]
+            tmp_menu = {
                 "text": f"{model_name}",
                 "leading_icon": "robot-happy",
                 "on_release": lambda x=f"{model_name}": self.llm_menu_callback(x),
                 "font_size": sp(24)
-            } for model_name in self.llm_models
+            }
+            menu_items.append(tmp_menu)
+        token_sizes = [128, 256, 512, 1024]
+        token_drop_items = [
+            {
+                "text": f"{tkn_size}",
+                "leading_icon": "robot-happy",
+                "on_release": lambda x=f"{tkn_size}": self.token_menu_callback(x),
+                "font_size": sp(24)
+            } for tkn_size in token_sizes
         ]
+        # model menu
         self.llm_menu = MDDropdownMenu(
             md_bg_color="#bdc6b0",
             caller=self.root.ids.chatbot_scr.ids.llm_menu,
@@ -168,8 +186,70 @@ class OnLlmApp(MDApp):
             self.llm_menu.items = []
             self.selected_llm = "None"
             self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
-        self.init_onnx_sess()
+        # token size menu
+        self.token_menu = MDDropdownMenu(
+            md_bg_color="#bdc6b0",
+            caller=self.root.ids.chatbot_scr.ids.token_menu,
+            items=token_drop_items,
+        )
+        self.root.ids.chatbot_scr.ids.token_menu.text = str(token_sizes[0])
         print("Initialisation is successful")
+
+    def start_from_welcome(self):
+
+        self.init_onnx_sess()
+        self.root.current = "chatbot_screen"
+
+    def update_download_progress(self, downloaded, total_size):
+        if total_size > 0:
+            percentage = (downloaded / total_size) * 100
+            self.download_progress.text = f"Progress: {percentage:.1f}%"
+        else:
+            self.download_progress.text = f"Progress: {downloaded} bytes"
+
+    def download_file(self, download_url, download_path):
+        filename = download_url.split("/")[-1]
+        try:
+            self.is_downloading = filename
+            with requests.get(download_url, stream=True) as req:
+                req.raise_for_status()
+                total_size = int(req.headers.get('content-length', 0))
+                downloaded = 0
+                with open(download_path, 'wb') as f:
+                    for chunk in req.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            Clock.schedule_once(lambda dt: self.update_download_progress(downloaded, total_size))
+            if os.path.exists(download_path):
+                Clock.schedule_once(lambda dt: self.show_toast_msg(f"Download complete: {download_path}"))
+            else:
+                Clock.schedule_once(lambda dt: self.show_toast_msg(f"Download failed for: {download_path}", is_error=True))
+            self.is_downloading = False
+        except requests.exceptions.RequestException as e:
+            print(f"Error downloading the onnx file: {e} 😞")
+            Clock.schedule_once(lambda dt: self.show_toast_msg(f"Download failed for: {download_path}", is_error=True))
+            self.is_downloading = False
+
+    def download_model_file(self, model_url, download_path, instance=None):
+        self.txt_dialog_closer(instance)
+        filename = download_path.split("/")[-1]
+        print(f"Starting the download for: {filename}")
+        if self.root.ids.screen_manager.current == "imgObjDetect":
+            result_box = self.root.ids.img_detect_box.ids.result_image
+        elif self.root.ids.screen_manager.current == "imgClassify":
+            result_box = self.root.ids.img_classify_box.ids.result_label
+        elif self.root.ids.screen_manager.current == "imgSpecies":
+            result_box = self.root.ids.img_species_box.ids.result_label
+        else:
+            result_box = self.root.ids.cam_detect_box.ids.cam_result_image
+        result_box.clear_widgets()
+        self.download_progress = MDLabel(
+            text="Progress: 0%",
+            halign="center"
+        )
+        result_box.add_widget(self.download_progress)
+        Thread(target=self.download_file, args=(model_url, download_path), daemon=True).start()
 
     def show_toast_msg(self, message, is_error=False, duration=3):
         from kivymd.uix.snackbar import MDSnackbar
@@ -237,6 +317,11 @@ class OnLlmApp(MDApp):
         self.selected_llm = text_item
         self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
         self.init_onnx_sess(self.selected_llm)
+
+    def token_menu_callback(self, text):
+        self.token_menu.dismiss()
+        self.token_count = int(text)
+        self.root.ids.chatbot_scr.ids.token_menu.text = text
 
     def add_bot_message(self, msg_to_add):
         # Adds the Bot msg into chat history
@@ -390,8 +475,6 @@ class OnLlmApp(MDApp):
 
     def sample_logits(self, logits, temperature=0.7, top_p=0.9):
         logits = logits.astype(np.float64)
-        print(f"logits dtype: {logits.dtype} min: {np.min(logits)} max: {np.max(logits)}")
-        print(f"logits shape: {logits.shape}")
         logits = logits / max(temperature, 1e-5)
         exp_logits = np.exp(logits - np.max(logits, axis=-1, keepdims=True))
         probs = exp_logits / np.sum(exp_logits, axis=-1, keepdims=True)
@@ -443,7 +526,6 @@ class OnLlmApp(MDApp):
                 ## Update values for next generation loop
                 #input_ids = np.argmax(logits[:, -1], axis=-1, keepdims=True)
                 input_ids = self.sample_logits(logits[:, -1, :], temperature=0.7, top_p=0.9)
-                print("Next token id:", int(input_ids[0][0]))
                 attention_mask = np.concatenate([attention_mask, np.ones_like(input_ids, dtype=np.int64)], axis=-1)
                 position_ids = position_ids[:, -1:] + 1
                 for j, key in enumerate(past_key_values):
@@ -456,13 +538,11 @@ class OnLlmApp(MDApp):
                 ## (Optional) Streaming (use tokenizer.decode)
                 txt_update = self.tokenizer.decode(input_ids[0], skip_special_tokens=True)
                 if txt_update:
-                    print(f"Decoded: {txt_update}")
                     final_txt += str(txt_update)
                     Clock.schedule_once(lambda dt: self.update_text_stream(txt_update))
             # final result
             final_result["content"] = final_txt
             final_result["role"] = "assistant"
-            print(f"Final text: {final_txt}")
         except Exception as e:
             print(f"Chat error: {e}")
             final_result["content"] = f"**Error** with LLM: {e}"
