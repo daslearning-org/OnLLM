@@ -81,12 +81,12 @@ class OnLlmApp(MDApp):
             "Demo": {
                 "icon": "youtube",
                 "action": "web",
-                "url": "https://youtube.com/watch?v=a-azvqDL78k",
+                "url": "https://www.youtube.com/playlist?list=PL7ZAVvBwIkXYJPUA3Wvkykk0u7DYWO3OI", # TBA
             },
             "Documentation": {
                 "icon": "file-document-check",
                 "action": "web",
-                "url": "https://blog.daslearning.in/llm_ai/ollama/kivy-chat.html",
+                "url": "https://blog.daslearning.in/llm_ai/ollama/kivy-chat.html", # TBA
             },
             "Contact Us": {
                 "icon": "card-account-phone",
@@ -196,9 +196,40 @@ class OnLlmApp(MDApp):
         print("Initialisation is successful")
 
     def start_from_welcome(self):
-
+        model_name = self.llm_models[0]['name']
+        path_to_model = os.path.join(self.model_dir, f"{model_name}")
+        model_config = os.path.join(path_to_model, "config.json")
+        model_tokenizer = os.path.join(path_to_model, "tokenizer.json")
+        model_onnx = os.path.join(path_to_model, "onnx", "model_int8.onnx")
+        if self.is_downloading:
+            self.show_toast_msg("Please wait for the downlaod to complete!", is_error=True)
+            return
+        if not os.path.exists(model_config) or not os.path.exists(model_tokenizer) or not os.path.exists(model_onnx):
+            self.popup_smol135m_model()
+            return
         self.init_onnx_sess()
         self.root.current = "chatbot_screen"
+
+    def popup_smol135m_model(self):
+        buttons = [
+            MDFlatButton(
+                text="Cancel",
+                theme_text_color="Custom",
+                text_color=self.theme_cls.primary_color,
+                on_release=self.txt_dialog_closer
+            ),
+            MDFlatButton(
+                text="Ok",
+                theme_text_color="Custom",
+                text_color="green",
+                on_release=self.download_smol_135m_model
+            ),
+        ]
+        self.show_text_dialog(
+            "Downlaod the model file",
+            f"You need to downlaod the file for the first time (~95MB)",
+            buttons
+        )
 
     def update_download_progress(self, downloaded, total_size):
         if total_size > 0:
@@ -222,7 +253,7 @@ class OnLlmApp(MDApp):
                             downloaded += len(chunk)
                             Clock.schedule_once(lambda dt: self.update_download_progress(downloaded, total_size))
             if os.path.exists(download_path):
-                Clock.schedule_once(lambda dt: self.show_toast_msg(f"Download complete: {download_path}"))
+                Clock.schedule_once(lambda dt: self.unzip_model(download_path))
             else:
                 Clock.schedule_once(lambda dt: self.show_toast_msg(f"Download failed for: {download_path}", is_error=True))
             self.is_downloading = False
@@ -235,21 +266,25 @@ class OnLlmApp(MDApp):
         self.txt_dialog_closer(instance)
         filename = download_path.split("/")[-1]
         print(f"Starting the download for: {filename}")
-        if self.root.ids.screen_manager.current == "imgObjDetect":
-            result_box = self.root.ids.img_detect_box.ids.result_image
-        elif self.root.ids.screen_manager.current == "imgClassify":
-            result_box = self.root.ids.img_classify_box.ids.result_label
-        elif self.root.ids.screen_manager.current == "imgSpecies":
-            result_box = self.root.ids.img_species_box.ids.result_label
-        else:
-            result_box = self.root.ids.cam_detect_box.ids.cam_result_image
-        result_box.clear_widgets()
-        self.download_progress = MDLabel(
-            text="Progress: 0%",
-            halign="center"
-        )
-        result_box.add_widget(self.download_progress)
+        self.download_progress = self.root.ids.welcome_scr.ids.download_stat
         Thread(target=self.download_file, args=(model_url, download_path), daemon=True).start()
+
+    def download_smol_135m_model(self, instance):
+        url = self.llm_models[0]['url']
+        model_name = self.llm_models[0]['name']
+        path_to_model = os.path.join(self.model_dir, f"{model_name}.tar.gz")
+        self.download_model_file(url, path_to_model, instance)
+
+    def unzip_model(self, filepath):
+        import tarfile
+        try:
+            with tarfile.open(filepath, "r:gz") as tar:
+                tar.extractall(path=self.model_dir)
+            os.remove(filepath)
+            self.show_toast_msg("Model has been downloaded successfully.")
+            self.is_downloading = False
+        except Exception as e:
+            print(f"Unzip error: {e}")
 
     def show_toast_msg(self, message, is_error=False, duration=3):
         from kivymd.uix.snackbar import MDSnackbar

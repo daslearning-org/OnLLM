@@ -15,8 +15,8 @@ Builder.load_string('''
 
     MDBoxLayout: # main box
         orientation: 'vertical'
-        padding: dp(8)
-        spacing: dp(10)
+        padding: dp(16)
+        spacing: dp(24)
 
         Image:
             source: 'data/images/favicon.png'
@@ -27,7 +27,13 @@ Builder.load_string('''
             font_style: "H5"
             halign: 'center'
             adaptive_height: True
-            text: "Your Private & Offline AI-Chatbot"
+            text: "Your Private & Offline AI-Chatbot from DasLearning.in"
+
+        MDLabel:
+            font_style: "H6"
+            halign: 'center'
+            adaptive_height: True
+            text: "You have a drop-down to select model and another drop-down to select maximum word limit for AI answer"
 
         MDLabel:
             id: download_stat
