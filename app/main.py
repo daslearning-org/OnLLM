@@ -389,19 +389,22 @@ class OnLlmApp(MDApp):
             self.show_toast_msg(f"Onnx init error: {e}", is_error=True)
 
     def sample_logits(self, logits, temperature=0.7, top_p=0.9):
-        logits = logits / max(temperature, 1e-5)  # Avoid division by zero
-        exp_logits = np.exp(logits - np.max(logits, axis=-1, keepdims=True))
-        probs = exp_logits / np.sum(exp_logits, axis=-1, keepdims=True)
-        # Top-p (nucleus) sampling
-        sorted_indices = np.argsort(probs[0])[::-1]
-        sorted_probs = probs[0, sorted_indices]
-        cumulative_probs = np.cumsum(sorted_probs)
-        cutoff = np.where(cumulative_probs > top_p)[0]
-        cutoff = cutoff[0] + 1 if len(cutoff) > 0 else len(probs[0])
-        probs[:, sorted_indices[cutoff:]] = 0
-        probs /= np.sum(probs, axis=-1, keepdims=True) + 1e-10  # Avoid zero sum
-        next_token = np.random.choice(len(probs[0]), p=probs[0])
-        return np.array([[next_token]])
+        logits = logits.astype(np.float64)
+        logits = logits / max(temperature, 1e-5)
+        # Softmax with stability trick
+        logits -= np.max(logits, axis=-1, keepdims=True)
+        probs = np.exp(logits)
+        probs /= np.sum(probs, axis=-1, keepdims=True) + 1e-12
+
+        # Top-p filtering
+        sorted_idx = np.argsort(probs[0])[::-1]
+        sorted_probs = probs[0, sorted_idx]
+        cum_probs = np.cumsum(sorted_probs)
+        cutoff = np.searchsorted(cum_probs, top_p) + 1
+        probs[0, sorted_idx[cutoff:]] = 0
+        probs /= np.sum(probs, axis=-1, keepdims=True) + 1e-12
+        next_token = np.random.choice(probs.shape[-1], p=probs[0])
+        return np.array([[next_token]], dtype=np.int64)
 
     def chat_with_llm(self, messages):
         if not self.process:
@@ -436,7 +439,7 @@ class OnLlmApp(MDApp):
                 ))
 
                 ## Update values for next generation loop
-                input_ids = self.sample_logits(logits[:, -1, :], temperature=0.7, top_p=0.9)
+                input_ids = np.argmax(logits[:, -1], axis=-1, keepdims=True) #self.sample_logits(logits[:, -1, :], temperature=0.7, top_p=0.9)
                 attention_mask = np.concatenate([attention_mask, np.ones_like(input_ids, dtype=np.int64)], axis=-1)
                 position_ids = position_ids[:, -1:] + 1
                 for j, key in enumerate(past_key_values):
