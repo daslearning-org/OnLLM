@@ -326,7 +326,7 @@ p4a.url = https://github.com/daslearning-org/p4a-unofficial.git
 #p4a.fork = kivy
 
 # (str) python-for-android branch to use, defaults to master
-p4a.branch = numpy2
+p4a.branch = v0.0.2
 
 # (str) python-for-android specific commit to use, defaults to HEAD, must be within p4a.branch
 #p4a.commit = HEAD

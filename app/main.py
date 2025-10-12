@@ -390,21 +390,20 @@ class OnLlmApp(MDApp):
 
     def sample_logits(self, logits, temperature=0.7, top_p=0.9):
         logits = logits.astype(np.float64)
+        print(f"logits dtype: {logits.dtype} min: {np.min(logits)} max: {np.max(logits)}")
+        print(f"logits shape: {logits.shape}")
         logits = logits / max(temperature, 1e-5)
-        # Softmax with stability trick
-        logits -= np.max(logits, axis=-1, keepdims=True)
-        probs = np.exp(logits)
-        probs /= np.sum(probs, axis=-1, keepdims=True) + 1e-12
-
-        # Top-p filtering
-        sorted_idx = np.argsort(probs[0])[::-1]
-        sorted_probs = probs[0, sorted_idx]
-        cum_probs = np.cumsum(sorted_probs)
-        cutoff = np.searchsorted(cum_probs, top_p) + 1
-        probs[0, sorted_idx[cutoff:]] = 0
-        probs /= np.sum(probs, axis=-1, keepdims=True) + 1e-12
-        next_token = np.random.choice(probs.shape[-1], p=probs[0])
-        return np.array([[next_token]], dtype=np.int64)
+        exp_logits = np.exp(logits - np.max(logits, axis=-1, keepdims=True))
+        probs = exp_logits / np.sum(exp_logits, axis=-1, keepdims=True)
+        sorted_indices = np.argsort(probs[0])[::-1]
+        sorted_probs = probs[0, sorted_indices]
+        cumulative_probs = np.cumsum(sorted_probs)
+        cutoff = np.where(cumulative_probs > top_p)[0]
+        cutoff = cutoff[0] + 1 if len(cutoff) > 0 else len(probs[0])
+        probs[:, sorted_indices[cutoff:]] = 0
+        probs /= np.sum(probs, axis=-1, keepdims=True) + 1e-10
+        next_token = np.random.choice(len(probs[0]), p=probs[0])
+        return np.array([[next_token]])
 
     def chat_with_llm(self, messages):
         if not self.process:
@@ -422,7 +421,10 @@ class OnLlmApp(MDApp):
             input_ids = inputs['input_ids']
             batch_size = inputs['input_ids'].shape[0]
             past_key_values = {
-                f'past_key_values.{layer}.{kv}': np.zeros([batch_size, self.num_key_value_heads, 0, self.head_dim], dtype=np.float32)
+                f'past_key_values.{layer}.{kv}': np.zeros(
+                    [batch_size, self.num_key_value_heads, 1, self.head_dim],
+                    dtype=np.float32
+                )[:, :, :0, :]  # Slice back to 0-length safely
                 for layer in range(self.num_hidden_layers)
                 for kv in ('key', 'value')
             }
@@ -439,7 +441,9 @@ class OnLlmApp(MDApp):
                 ))
 
                 ## Update values for next generation loop
-                input_ids = np.argmax(logits[:, -1], axis=-1, keepdims=True) #self.sample_logits(logits[:, -1, :], temperature=0.7, top_p=0.9)
+                #input_ids = np.argmax(logits[:, -1], axis=-1, keepdims=True)
+                input_ids = self.sample_logits(logits[:, -1, :], temperature=0.7, top_p=0.9)
+                print("Next token id:", int(input_ids[0][0]))
                 attention_mask = np.concatenate([attention_mask, np.ones_like(input_ids, dtype=np.int64)], axis=-1)
                 position_ids = position_ids[:, -1:] + 1
                 for j, key in enumerate(past_key_values):
@@ -452,6 +456,7 @@ class OnLlmApp(MDApp):
                 ## (Optional) Streaming (use tokenizer.decode)
                 txt_update = self.tokenizer.decode(input_ids[0], skip_special_tokens=True)
                 if txt_update:
+                    print(f"Decoded: {txt_update}")
                     final_txt += str(txt_update)
                     Clock.schedule_once(lambda dt: self.update_text_stream(txt_update))
             # final result
