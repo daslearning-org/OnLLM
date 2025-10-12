@@ -4,7 +4,8 @@ OnLLM is the platform to run `Large Language Model` (LLM) or SLM models using `O
 > The name is derived from: `On` from Onnx + `LLM`. Our approach is always local & offline first (you will need internet to download the model files for the first time). Arificial Intelligence (AI) to be accesible to everyone.
 
 ### Features
-1. An inbuild chatbot to chat with the AI model(s)
+1. An inbuild chatbot to chat with the AI model(s).
+2. No trackers, no Ads, No data collection, completely Private.
 
 ## 📽️ Demo
 To be added later...
