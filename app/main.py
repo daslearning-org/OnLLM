@@ -39,6 +39,7 @@ from m2r2 import convert
 # local imports
 from myrst import MyRstDocument
 from screens.chatbot_screen import TempSpinWait, ChatbotScreen
+from screens.welcome import WelcomeScreen
 
 # IMPORTANT: Set this property for keyboard behavior
 Window.softinput_mode = "below_target"
@@ -57,34 +58,13 @@ else:
 kv_file_path = os.path.join(base_path, 'main_layout.kv')
 
 ## debug
-def check_nnapi_support():
-    # Get Android classes
-    has_nnapi = False
-    Build = autoclass('android.os.Build')
-    VERSION = autoclass('android.os.Build$VERSION')
-    ActivityManager = autoclass('android.app.ActivityManager')
-    PythonActivity = autoclass('org.kivy.android.PythonActivity')
-    context = PythonActivity.mActivity
-
-    # Print device info
-    print(f"Device: {Build.MANUFACTURER} {Build.MODEL}")
-    print(f"Android version: {VERSION.RELEASE}")
-
-    # Optional: print available accelerators (requires Android 11+)
-    try:
-        has_nnapi = context.getPackageManager().hasSystemFeature("android.hardware.neuralnetworks")
-        print(f"NNAPI feature present: {has_nnapi}")
-        NeuralNetworks = autoclass("android.hardware.neuralnetworks.NeuralNetworks")
-        print("NNAPI NDK present.")
-    except Exception as e:
-        print(f"NNAPI NDK not found: {e}")
-    return has_nnapi
 
 ## The KivyMD app
 class OnLlmApp(MDApp):
     is_downloading = ObjectProperty(None)
     llm_menu = ObjectProperty()
     tmp_txt = ObjectProperty()
+    token_count = NumericProperty(128)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -101,12 +81,12 @@ class OnLlmApp(MDApp):
             "Demo": {
                 "icon": "youtube",
                 "action": "web",
-                "url": "https://youtube.com/watch?v=a-azvqDL78k",
+                "url": "https://www.youtube.com/playlist?list=PL7ZAVvBwIkXYJPUA3Wvkykk0u7DYWO3OI", # TBA
             },
             "Documentation": {
                 "icon": "file-document-check",
                 "action": "web",
-                "url": "https://blog.daslearning.in/llm_ai/ollama/kivy-chat.html",
+                "url": "https://blog.daslearning.in/llm_ai/ollama/kivy-chat.html", # TBA
             },
             "Contact Us": {
                 "icon": "card-account-phone",
@@ -127,7 +107,12 @@ class OnLlmApp(MDApp):
         return Builder.load_file(kv_file_path)
 
     def on_start(self):
-        self.llm_models = ["gemma3-1B"]
+        self.llm_models = [
+            {
+                "name": "smollm2-135m",
+                "url": "https://github.com/daslearning-org/OnLLM/releases/download/vOnnxModels/smollm2-135m.tar.gz"
+            }
+        ]
         if platform == "android":
             # paths on android
             context = autoclass('org.kivy.android.PythonActivity').mActivity
@@ -166,14 +151,26 @@ class OnLlmApp(MDApp):
         ## the chatbot thing
         self.chat_history_id = self.root.ids.chatbot_scr.ids.chat_history_id
         self.chat_history_id.background_color = self.theme_cls.bg_normal
-        menu_items = [
-            {
+        menu_items = []
+        for model in self.llm_models:
+            model_name = model["name"]
+            tmp_menu = {
                 "text": f"{model_name}",
                 "leading_icon": "robot-happy",
                 "on_release": lambda x=f"{model_name}": self.llm_menu_callback(x),
                 "font_size": sp(24)
-            } for model_name in self.llm_models
+            }
+            menu_items.append(tmp_menu)
+        token_sizes = [128, 256, 512, 1024]
+        token_drop_items = [
+            {
+                "text": f"{tkn_size}",
+                "leading_icon": "robot-happy",
+                "on_release": lambda x=f"{tkn_size}": self.token_menu_callback(x),
+                "font_size": sp(24)
+            } for tkn_size in token_sizes
         ]
+        # model menu
         self.llm_menu = MDDropdownMenu(
             md_bg_color="#bdc6b0",
             caller=self.root.ids.chatbot_scr.ids.llm_menu,
@@ -189,11 +186,105 @@ class OnLlmApp(MDApp):
             self.llm_menu.items = []
             self.selected_llm = "None"
             self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
-        self.init_onnx_sess()
+        # token size menu
+        self.token_menu = MDDropdownMenu(
+            md_bg_color="#bdc6b0",
+            caller=self.root.ids.chatbot_scr.ids.token_menu,
+            items=token_drop_items,
+        )
+        self.root.ids.chatbot_scr.ids.token_menu.text = str(token_sizes[0])
         print("Initialisation is successful")
-        if platform == "android":
-            nnapi = check_nnapi_support()
-            self.show_toast_msg(f"NNAPI: {nnapi}")
+
+    def start_from_welcome(self):
+        model_name = self.llm_models[0]['name']
+        path_to_model = os.path.join(self.model_dir, f"{model_name}")
+        model_config = os.path.join(path_to_model, "config.json")
+        model_tokenizer = os.path.join(path_to_model, "tokenizer.json")
+        model_onnx = os.path.join(path_to_model, "onnx", "model_int8.onnx")
+        if self.is_downloading:
+            self.show_toast_msg("Please wait for the downlaod to complete!", is_error=True)
+            return
+        if not os.path.exists(model_config) or not os.path.exists(model_tokenizer) or not os.path.exists(model_onnx):
+            self.popup_smol135m_model()
+            return
+        self.init_onnx_sess()
+        self.root.current = "chatbot_screen"
+
+    def popup_smol135m_model(self):
+        buttons = [
+            MDFlatButton(
+                text="Cancel",
+                theme_text_color="Custom",
+                text_color=self.theme_cls.primary_color,
+                on_release=self.txt_dialog_closer
+            ),
+            MDFlatButton(
+                text="Ok",
+                theme_text_color="Custom",
+                text_color="green",
+                on_release=self.download_smol_135m_model
+            ),
+        ]
+        self.show_text_dialog(
+            "Downlaod the model file",
+            f"You need to downlaod the file for the first time (~95MB)",
+            buttons
+        )
+
+    def update_download_progress(self, downloaded, total_size):
+        if total_size > 0:
+            percentage = (downloaded / total_size) * 100
+            self.download_progress.text = f"Progress: {percentage:.1f}%"
+        else:
+            self.download_progress.text = f"Progress: {downloaded} bytes"
+
+    def download_file(self, download_url, download_path):
+        filename = download_url.split("/")[-1]
+        try:
+            self.is_downloading = filename
+            with requests.get(download_url, stream=True) as req:
+                req.raise_for_status()
+                total_size = int(req.headers.get('content-length', 0))
+                downloaded = 0
+                with open(download_path, 'wb') as f:
+                    for chunk in req.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            Clock.schedule_once(lambda dt: self.update_download_progress(downloaded, total_size))
+            if os.path.exists(download_path):
+                Clock.schedule_once(lambda dt: self.unzip_model(download_path))
+            else:
+                Clock.schedule_once(lambda dt: self.show_toast_msg(f"Download failed for: {download_path}", is_error=True))
+            self.is_downloading = False
+        except requests.exceptions.RequestException as e:
+            print(f"Error downloading the onnx file: {e} 😞")
+            Clock.schedule_once(lambda dt: self.show_toast_msg(f"Download failed for: {download_path}", is_error=True))
+            self.is_downloading = False
+
+    def download_model_file(self, model_url, download_path, instance=None):
+        self.txt_dialog_closer(instance)
+        filename = download_path.split("/")[-1]
+        print(f"Starting the download for: {filename}")
+        self.download_progress = self.root.ids.welcome_scr.ids.download_stat
+        Thread(target=self.download_file, args=(model_url, download_path), daemon=True).start()
+
+    def download_smol_135m_model(self, instance):
+        url = self.llm_models[0]['url']
+        model_name = self.llm_models[0]['name']
+        path_to_model = os.path.join(self.model_dir, f"{model_name}.tar.gz")
+        self.download_model_file(url, path_to_model, instance)
+
+    def unzip_model(self, filepath):
+        import tarfile
+        try:
+            with tarfile.open(filepath, "r:gz") as tar:
+                tar.extractall(path=self.model_dir)
+            os.remove(filepath)
+            self.show_toast_msg("Model has been downloaded successfully.")
+            self.is_downloading = False
+        except Exception as e:
+            print(f"Unzip error: {e}")
 
     def show_toast_msg(self, message, is_error=False, duration=3):
         from kivymd.uix.snackbar import MDSnackbar
@@ -261,6 +352,11 @@ class OnLlmApp(MDApp):
         self.selected_llm = text_item
         self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
         self.init_onnx_sess(self.selected_llm)
+
+    def token_menu_callback(self, text):
+        self.token_menu.dismiss()
+        self.token_count = int(text)
+        self.root.ids.chatbot_scr.ids.token_menu.text = text
 
     def add_bot_message(self, msg_to_add):
         # Adds the Bot msg into chat history
@@ -343,10 +439,47 @@ class OnLlmApp(MDApp):
         else:
             self.show_toast_msg("Please type a message!", is_error=True)
 
-    def init_onnx_sess(self, llm="gemma3-1B"):
+    def apply_chat_template(self, messages, add_generation_prompt=False, tokenize=True, return_tensors="np"):
+        prompt = ""  # no initials
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"].strip()  # Strip for cleanliness
+            if role == "system":
+                prompt += f"<|im_start|>system\n{content}<|im_end|>\n"
+            elif role == "user":
+                prompt += f"<|im_start|>user\n{content}<|im_end|>\n"
+            elif role == "assistant" or role == "model":
+                prompt += f"<|im_start|>assistant\n{content}<|im_end|>\n"
+
+        if add_generation_prompt:
+            prompt += "<|im_start|>assistant\n"
+
+        if not tokenize:
+            return prompt
+
+        # Tokenize (encode to IDs)
+        encoding = self.tokenizer.encode(prompt, add_special_tokens=False)  # False to avoid extra BOS if already added
+        token_ids = encoding.ids
+
+        if return_tensors == "np":
+            input_ids = np.array([token_ids], dtype=np.int64)  # Batch size 1
+        else:
+            input_ids = np.array(token_ids, dtype=np.int64)
+
+        # Return dict like HF (only input_ids, as in your code)
+        return {"input_ids": input_ids}
+
+    def init_onnx_sess(self, llm="smollm2-135m"):
         path_to_model = os.path.join(self.model_dir, llm)
+        arm_android = False
+        try:
+            import platform as corept
+            cpu_arch = corept.machine()
+            if 'arm' in cpu_arch.lower() or 'aarch' in cpu_arch.lower():
+                arm_android = True
+        except Exception as e:
+            print(f"Error in CPU architecture check: {e}")
         android_providers = [
-            #'NnapiExecutionProvider',
             'XnnpackExecutionProvider',
             'CPUExecutionProvider',
         ]
@@ -355,18 +488,17 @@ class OnLlmApp(MDApp):
             'CPUExecutionProvider'
         ]
         try:
+            # Load config & token jsons
             # Load config with json
             with open(f"{path_to_model}/config.json", "r") as f:
                 config_data = json.load(f)
-            # Extract needed values (same as before)
+            self.tokenizer = Tokenizer.from_file(f"{path_to_model}/tokenizer.json")
             self.num_key_value_heads = config_data["num_key_value_heads"]
             self.head_dim = config_data["head_dim"]
             self.num_hidden_layers = config_data["num_hidden_layers"]
-            # Load tokenizer from tokenizer.json
-            self.tokenizer = Tokenizer.from_file(f"{path_to_model}/tokenizer.json")
-            # Get EOS token ID dynamically
-            self.eos_token_id = self.tokenizer.token_to_id("<end_of_turn>")
-            if platform == "android":
+            self.eos_token_id = self.tokenizer.token_to_id("<|im_end|>")
+
+            if platform == "android" or arm_android:
                 self.decoder_session = InferenceSession(f"{path_to_model}/onnx/model_int8.onnx", providers=android_providers)
             else:
                 self.decoder_session = InferenceSession(f"{path_to_model}/onnx/model_int8.onnx", providers=desktop_providers)
@@ -374,66 +506,76 @@ class OnLlmApp(MDApp):
             self.process = True
         except Exception as e:
             print(f"Onnx init error: {e}")
+            self.show_toast_msg(f"Onnx init error: {e}", is_error=True)
 
-    def chat_with_llm(self, messages, add_generation_prompt=True, return_tensors="np"):
+    def sample_logits(self, logits, temperature=0.7, top_p=0.9):
+        logits = logits.astype(np.float64)
+        logits = logits / max(temperature, 1e-5)
+        exp_logits = np.exp(logits - np.max(logits, axis=-1, keepdims=True))
+        probs = exp_logits / np.sum(exp_logits, axis=-1, keepdims=True)
+        sorted_indices = np.argsort(probs[0])[::-1]
+        sorted_probs = probs[0, sorted_indices]
+        cumulative_probs = np.cumsum(sorted_probs)
+        cutoff = np.where(cumulative_probs > top_p)[0]
+        cutoff = cutoff[0] + 1 if len(cutoff) > 0 else len(probs[0])
+        probs[:, sorted_indices[cutoff:]] = 0
+        probs /= np.sum(probs, axis=-1, keepdims=True) + 1e-10
+        next_token = np.random.choice(len(probs[0]), p=probs[0])
+        return np.array([[next_token]])
+
+    def chat_with_llm(self, messages):
         if not self.process:
             self.is_llm_running = False
             Clock.schedule_once(lambda dt: self.show_toast_msg("Onnx Session is not ready", is_error=True))
             return
-        prompt = "<bos>"  # BOS always starts
-        for msg in messages:
-            role = msg["role"]
-            content = msg["content"].strip()  # Strip for cleanliness
-            if role == "system":
-                prompt += f"<start_of_turn>system\n{content}<end_of_turn>\n"
-            elif role == "user":
-                prompt += f"<start_of_turn>user\n{content}<end_of_turn>\n"
-            elif role == "assistant" or role == "model":
-                prompt += f"<start_of_turn>model\n{content}<end_of_turn>\n"
-        if add_generation_prompt:
-            prompt += "<start_of_turn>model\n"
-        final_result = {"role": "init", "content": "**Initials** in LLM response!"}
+        # start onnx llm inference
+        final_result = {"role": "init", "content": "Chat initial"}
+        final_txt = ""
         try:
-            # Tokenize (encode to IDs)
-            encoding = self.tokenizer.encode(prompt, add_special_tokens=False)  # False to avoid extra BOS if already added
-            token_ids = encoding.ids
-            if return_tensors == "np":
-                input_ids = np.array([token_ids], dtype=np.int64)  # Batch size 1
-            else:
-                input_ids = np.array(token_ids, dtype=np.int64)
-            ## Prepare decoder inputs (same)
-            batch_size = input_ids.shape[0]
+            inputs = self.apply_chat_template(messages, add_generation_prompt=True, tokenize=True, return_tensors="np")
+            input_token_count = inputs['input_ids'].shape[-1]
+            print(f"Input token count: {input_token_count}")
+            ## Prepare decoder inputs
+            input_ids = inputs['input_ids']
+            batch_size = inputs['input_ids'].shape[0]
             past_key_values = {
-                f'past_key_values.{layer}.{kv}': np.zeros([batch_size, self.num_key_value_heads, 0, self.head_dim], dtype=np.float32)
+                f'past_key_values.{layer}.{kv}': np.zeros(
+                    [batch_size, self.num_key_value_heads, 1, self.head_dim],
+                    dtype=np.float32
+                )[:, :, :0, :]  # Slice back to 0-length safely
                 for layer in range(self.num_hidden_layers)
                 for kv in ('key', 'value')
             }
-            position_ids = np.tile(np.arange(1, input_ids.shape[-1] + 1), (batch_size, 1))
-            max_new_tokens = 1024
-            generated_tokens = np.array([[]], dtype=np.int64)
+            attention_mask = np.ones_like(input_ids, dtype=np.int64)
+            position_ids = np.tile(np.arange(0, input_ids.shape[-1]), (batch_size, 1))
+            max_new_tokens = int(self.token_count)
+            #generated_tokens = input_ids
             for i in range(max_new_tokens):
                 logits, *present_key_values = self.decoder_session.run(None, dict(
                     input_ids=input_ids,
+                    attention_mask=attention_mask,
                     position_ids=position_ids,
                     **past_key_values,
                 ))
 
                 ## Update values for next generation loop
-                input_ids = np.argmax(logits[:, -1], axis=-1, keepdims=True)  # Fixed: np.argmax for array
+                #input_ids = np.argmax(logits[:, -1], axis=-1, keepdims=True)
+                input_ids = self.sample_logits(logits[:, -1, :], temperature=0.7, top_p=0.9)
+                attention_mask = np.concatenate([attention_mask, np.ones_like(input_ids, dtype=np.int64)], axis=-1)
                 position_ids = position_ids[:, -1:] + 1
                 for j, key in enumerate(past_key_values):
                     past_key_values[key] = present_key_values[j]
 
-                generated_tokens = np.concatenate([generated_tokens, input_ids], axis=-1)
-                if (input_ids == self.eos_token_id).all():
+                #generated_tokens = np.concatenate([generated_tokens, input_ids], axis=-1)
+                if (input_ids == self.eos_token_id).any():
                     break
 
                 ## (Optional) Streaming (use tokenizer.decode)
-                txt_update = self.tokenizer.decode(input_ids[0].tolist())
-                Clock.schedule_once(lambda dt: self.update_text_stream(txt_update))
+                txt_update = self.tokenizer.decode(input_ids[0], skip_special_tokens=True)
+                if txt_update:
+                    final_txt += str(txt_update)
+                    Clock.schedule_once(lambda dt: self.update_text_stream(txt_update))
             # final result
-            final_txt = [self.tokenizer.decode(ids.tolist()) for ids in generated_tokens]
-            final_txt = final_txt[0]
             final_result["content"] = final_txt
             final_result["role"] = "assistant"
         except Exception as e:
@@ -444,7 +586,7 @@ class OnLlmApp(MDApp):
 
     def update_text_stream(self, txt_update):
         if self.tmp_txt:
-            self.tmp_txt.text = self.tmp_txt.text + " " + txt_update
+            self.tmp_txt.text = self.tmp_txt.text + txt_update
 
     def final_llm_result(self, llm_resp):
         if llm_resp["role"] == "assistant":
