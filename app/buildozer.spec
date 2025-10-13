@@ -13,7 +13,7 @@ package.domain = in.daslearning
 source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
-source.include_exts = py,png,jpg,kv,atlas
+source.include_exts = py,png,jpg,kv,atlas,ttf
 
 # (list) List of inclusions using pattern matching
 #source.include_patterns = assets/*,images/*.png
@@ -116,7 +116,6 @@ android.minapi = 28
 
 # (str) Android NDK version to use
 android.ndk = 25b
-#28c
 
 # (int) Android NDK API to use. This is the minimum API your app will support, it should usually match android.minapi.
 #android.ndk_api = 21

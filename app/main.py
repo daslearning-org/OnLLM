@@ -17,6 +17,7 @@ from kivy.core.window import Window
 from kivy.metrics import dp, sp
 from kivy.utils import platform
 from kivy.core.clipboard import Clipboard
+from kivy.core.text import LabelBase
 from kivy.clock import Clock
 if platform == "android":
     from jnius import autoclass
@@ -45,9 +46,8 @@ from screens.welcome import WelcomeScreen
 Window.softinput_mode = "below_target"
 
 ## Global definitions
-__version__ = "0.0.1" # The APP version
+__version__ = "0.0.2" # The APP version
 
-detect_model_url = "https://github.com/onnx/models/raw/main/validated/vision/object_detection_segmentation/ssd-mobilenetv1/model/ssd_mobilenet_v1_10.onnx"
 # Determine the base path for your application's resources
 if getattr(sys, 'frozen', False):
     # Running as a PyInstaller bundle
@@ -56,6 +56,12 @@ else:
     # Running in a normal Python environment
     base_path = os.path.dirname(os.path.abspath(__file__))
 kv_file_path = os.path.join(base_path, 'main_layout.kv')
+noto_font = os.path.join(base_path, "data/fonts/NotoSans-Merged.ttf")
+try:
+    LabelBase.register(name="Default", fn_regular=noto_font)
+    print(f"Font loaded from: {noto_font}")
+except Exception as e:
+    print(f"Error in font loading: {e}")
 
 ## debug
 
@@ -70,6 +76,7 @@ class OnLlmApp(MDApp):
         super().__init__(**kwargs)
         #Window.bind(on_keyboard=self.events)
         self.process = None
+        self.stop = False
         self.decoder_session = None
         self.selected_llm = ""
         self.messages = []
@@ -86,7 +93,7 @@ class OnLlmApp(MDApp):
             "Documentation": {
                 "icon": "file-document-check",
                 "action": "web",
-                "url": "https://blog.daslearning.in/llm_ai/ollama/kivy-chat.html", # TBA
+                "url": "https://blog.daslearning.in/llm_ai/genai/onllm.html",
             },
             "Contact Us": {
                 "icon": "card-account-phone",
@@ -209,6 +216,12 @@ class OnLlmApp(MDApp):
             return
         self.init_onnx_sess()
         self.root.current = "chatbot_screen"
+
+    def new_chat(self):
+        self.stop = True
+        self.is_llm_running = False
+        self.chat_history_id.clear_widgets()
+        self.messages = []
 
     def popup_smol135m_model(self):
         buttons = [
@@ -529,6 +542,7 @@ class OnLlmApp(MDApp):
             Clock.schedule_once(lambda dt: self.show_toast_msg("Onnx Session is not ready", is_error=True))
             return
         # start onnx llm inference
+        self.stop = False
         final_result = {"role": "init", "content": "Chat initial"}
         final_txt = ""
         try:
@@ -567,12 +581,12 @@ class OnLlmApp(MDApp):
                     past_key_values[key] = present_key_values[j]
 
                 #generated_tokens = np.concatenate([generated_tokens, input_ids], axis=-1)
-                if (input_ids == self.eos_token_id).any():
+                if (input_ids == self.eos_token_id).any() or self.stop:
                     break
 
                 ## (Optional) Streaming (use tokenizer.decode)
                 txt_update = self.tokenizer.decode(input_ids[0], skip_special_tokens=True)
-                if txt_update:
+                if txt_update and not self.stop:
                     final_txt += str(txt_update)
                     Clock.schedule_once(lambda dt: self.update_text_stream(txt_update))
             # final result
@@ -582,7 +596,8 @@ class OnLlmApp(MDApp):
             print(f"Chat error: {e}")
             final_result["content"] = f"**Error** with LLM: {e}"
             final_result["role"] = "error"
-        Clock.schedule_once(lambda dt: self.final_llm_result(final_result))
+        if not self.stop:
+            Clock.schedule_once(lambda dt: self.final_llm_result(final_result))
 
     def update_text_stream(self, txt_update):
         if self.tmp_txt:

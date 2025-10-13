@@ -1115,7 +1115,7 @@ class _Visitor(nodes.NodeVisitor):
                     return
 
             if self.do_strip_text:
-                node = node.replace('\n', ' ')
+                #node = node.replace('\n', ' ')
                 node = node.replace('  ', ' ')
                 node = node.replace('\t', ' ')
                 node = node.replace('  ', ' ')
