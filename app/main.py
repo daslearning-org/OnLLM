@@ -17,6 +17,7 @@ from kivy.core.window import Window
 from kivy.metrics import dp, sp
 from kivy.utils import platform
 from kivy.core.clipboard import Clipboard
+from kivy.core.text import LabelBase
 from kivy.clock import Clock
 if platform == "android":
     from jnius import autoclass
@@ -45,9 +46,8 @@ from screens.welcome import WelcomeScreen
 Window.softinput_mode = "below_target"
 
 ## Global definitions
-__version__ = "0.0.1" # The APP version
+__version__ = "0.0.2" # The APP version
 
-detect_model_url = "https://github.com/onnx/models/raw/main/validated/vision/object_detection_segmentation/ssd-mobilenetv1/model/ssd_mobilenet_v1_10.onnx"
 # Determine the base path for your application's resources
 if getattr(sys, 'frozen', False):
     # Running as a PyInstaller bundle
@@ -56,6 +56,8 @@ else:
     # Running in a normal Python environment
     base_path = os.path.dirname(os.path.abspath(__file__))
 kv_file_path = os.path.join(base_path, 'main_layout.kv')
+noto_font = os.path.join(base_path, "data/fonts/NotoSans-Merged.ttf")
+LabelBase.register(name="Default", fn_regular=noto_font)
 
 ## debug
 
