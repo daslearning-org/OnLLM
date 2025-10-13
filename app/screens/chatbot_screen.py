@@ -35,8 +35,8 @@ Builder.load_string('''
 
     MDBoxLayout: # main box
         orientation: 'vertical'
-        padding: dp(8)
-        spacing: dp(10)
+        padding: 8, 0, 8, 0 # left, top, right, bottom
+        spacing: dp(4)
 
         MDBoxLayout: # top button group
             orientation: 'horizontal'
@@ -44,15 +44,22 @@ Builder.load_string('''
             #size_hint_y: 0.1
             spacing: dp(10)
 
+            MDFillRoundFlatIconButton:
+                icon: "chat"
+                text: "New Chat"
+                md_bg_color: '#333036'
+                font_size: sp(10)
+                on_release: app.new_chat()
+
             MDDropDownItem:
-                md_bg_color: "#bdc6b0"
+                #md_bg_color: "#bdc6b0"
                 on_release: app.llm_menu.open()
-                text: "Choose Model"
+                text: "Model"
                 id: llm_menu
                 font_size: sp(14)
 
             MDDropDownItem:
-                md_bg_color: "#bdc6b0"
+                #md_bg_color: "#bdc6b0"
                 on_release: app.token_menu.open()
                 text: "Length"
                 id: token_menu
@@ -84,10 +91,12 @@ Builder.load_string('''
             size_hint_y: 0.2
             orientation: 'horizontal'
             spacing: dp(5)
+            padding: 0, 0, 0, 8 # left, top, right, bottom
             adaptive_height: True
 
             MDTextField:
                 id: chat_input
+                font_name: 'data/fonts/NotoSans-Merged.ttf'
                 hint_text: "Ask anyhthing..."
                 mode: "rectangle"
                 multiline: True
@@ -101,7 +110,7 @@ Builder.load_string('''
                 icon: "send"
                 text: "Go"
                 size_hint_x: 0.2
-                size_hint_y: 1
+                size_hint_y: 0.8
                 font_size: sp(16)
                 on_release: app.send_message(self, chat_input)
 

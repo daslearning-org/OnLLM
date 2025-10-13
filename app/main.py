@@ -70,6 +70,7 @@ class OnLlmApp(MDApp):
         super().__init__(**kwargs)
         #Window.bind(on_keyboard=self.events)
         self.process = None
+        self.stop = False
         self.decoder_session = None
         self.selected_llm = ""
         self.messages = []
@@ -86,7 +87,7 @@ class OnLlmApp(MDApp):
             "Documentation": {
                 "icon": "file-document-check",
                 "action": "web",
-                "url": "https://blog.daslearning.in/llm_ai/ollama/kivy-chat.html", # TBA
+                "url": "https://blog.daslearning.in/llm_ai/genai/onllm.html",
             },
             "Contact Us": {
                 "icon": "card-account-phone",
@@ -209,6 +210,12 @@ class OnLlmApp(MDApp):
             return
         self.init_onnx_sess()
         self.root.current = "chatbot_screen"
+
+    def new_chat(self):
+        self.stop = True
+        self.is_llm_running = False
+        self.chat_history_id.clear_widgets()
+        self.messages = []
 
     def popup_smol135m_model(self):
         buttons = [
@@ -529,6 +536,7 @@ class OnLlmApp(MDApp):
             Clock.schedule_once(lambda dt: self.show_toast_msg("Onnx Session is not ready", is_error=True))
             return
         # start onnx llm inference
+        self.stop = False
         final_result = {"role": "init", "content": "Chat initial"}
         final_txt = ""
         try:
@@ -567,12 +575,12 @@ class OnLlmApp(MDApp):
                     past_key_values[key] = present_key_values[j]
 
                 #generated_tokens = np.concatenate([generated_tokens, input_ids], axis=-1)
-                if (input_ids == self.eos_token_id).any():
+                if (input_ids == self.eos_token_id).any() or self.stop:
                     break
 
                 ## (Optional) Streaming (use tokenizer.decode)
                 txt_update = self.tokenizer.decode(input_ids[0], skip_special_tokens=True)
-                if txt_update:
+                if txt_update and not self.stop:
                     final_txt += str(txt_update)
                     Clock.schedule_once(lambda dt: self.update_text_stream(txt_update))
             # final result
@@ -582,7 +590,8 @@ class OnLlmApp(MDApp):
             print(f"Chat error: {e}")
             final_result["content"] = f"**Error** with LLM: {e}"
             final_result["role"] = "error"
-        Clock.schedule_once(lambda dt: self.final_llm_result(final_result))
+        if not self.stop:
+            Clock.schedule_once(lambda dt: self.final_llm_result(final_result))
 
     def update_text_stream(self, txt_update):
         if self.tmp_txt:
