@@ -1,4 +1,6 @@
 # screens/chatbot_screen.py
+import sys, os
+
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.scrollview import MDScrollView
@@ -11,6 +13,16 @@ from kivymd.uix.button import MDIconButton, MDFillRoundFlatButton, MDFillRoundFl
 from kivy.uix.widget import Widget
 from kivy.lang import Builder
 from kivy.metrics import dp, sp
+from kivy.properties import StringProperty, NumericProperty, ObjectProperty
+
+# get path details
+if getattr(sys, 'frozen', False):
+    # Running as a PyInstaller bundle
+    base_path = sys._MEIPASS
+else:
+    # Running in a normal Python environment
+    base_path = os.path.dirname(os.path.abspath(__file__))
+noto_font = os.path.abspath(os.path.join(base_path, "..","data/fonts/NotoSans-Merged.ttf"))
 
 Builder.load_string('''
 
@@ -96,7 +108,7 @@ Builder.load_string('''
 
             MDTextField:
                 id: chat_input
-                font_name: 'data/fonts/NotoSans-Merged.ttf'
+                font_name: root.noto_path
                 hint_text: "Ask anyhthing..."
                 mode: "rectangle"
                 multiline: True
@@ -120,6 +132,8 @@ class TempSpinWait(MDBoxLayout):
     pass
 
 class ChatbotScreen(MDScreen):
-    def __init__(self, **kwargs):
+    noto_path = StringProperty()
+    def __init__(self, noto=noto_font, **kwargs):
         super().__init__(**kwargs)
         self.name = 'chatbot_screen'
+        self.noto_path = noto
