@@ -38,8 +38,8 @@ from tokenizers import Tokenizer
 from m2r2 import convert
 
 # local imports
-from myrst import MyRstDocument
-from screens.chatbot_screen import TempSpinWait, ChatbotScreen
+from screens.myrst import MyRstDocument
+from screens.chatbot_screen import TempSpinWait, ChatbotScreen, BotResp, BotTmpResp
 from screens.welcome import WelcomeScreen
 
 # IMPORTANT: Set this property for keyboard behavior
@@ -369,21 +369,8 @@ class OnLlmApp(MDApp):
     def add_bot_message(self, msg_to_add):
         # Adds the Bot msg into chat history
         rst_txt = convert(msg_to_add)
-        bot_msg_label = MyRstDocument(
-            text = rst_txt,
-            base_font_size=36,
-            padding=[dp(10), dp(10)],
-            background_color = self.theme_cls.bg_normal
-        )
-        copy_btn = MDFloatingActionButton(
-            icon="content-copy",
-            type="small",
-            theme_icon_color="Custom",
-            md_bg_color='#e9dff7',
-            icon_color='#211c29',
-        )
-        copy_btn.bind(on_release=self.copy_rst)
-        bot_msg_label.add_widget(copy_btn)
+        bot_msg_label = BotResp()
+        bot_msg_label.text = rst_txt
         self.chat_history_id.add_widget(bot_msg_label)
 
     def copy_rst(self, instance):
@@ -426,18 +413,7 @@ class OnLlmApp(MDApp):
             )
             self.add_usr_message(user_message_add)
             chat_input_widget.text = "" # blank the input
-            self.tmp_txt = MDLabel(
-                size_hint_y=None,
-                #markup=True,
-                halign='left',
-                valign='top',
-                padding=[dp(10), dp(10)],
-                font_style="Subtitle1",
-                allow_selection = True,
-                allow_copy = True,
-                text = "",
-            )
-            self.tmp_txt.bind(texture_size=self.tmp_txt.setter('size'))
+            self.tmp_txt = BotTmpResp()
             self.chat_history_id.add_widget(self.tmp_txt)
             msg_to_send = [{"role": "system", "content": "You are a helpful assistant."}]
             msg_to_send.extend(self.messages[-3:]) # taking last three messages only

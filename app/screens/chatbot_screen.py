@@ -8,12 +8,15 @@ from kivymd.uix.label import MDLabel
 from kivymd.uix.spinner import MDSpinner
 from kivymd.uix.textfield import MDTextField
 from kivymd.uix.dropdownitem import MDDropDownItem
-from kivymd.uix.button import MDIconButton, MDFillRoundFlatButton, MDFillRoundFlatIconButton
+from kivymd.uix.button import MDIconButton, MDFillRoundFlatButton, MDFillRoundFlatIconButton, MDFloatingActionButton
 
 from kivy.uix.widget import Widget
 from kivy.lang import Builder
 from kivy.metrics import dp, sp
 from kivy.properties import StringProperty, NumericProperty, ObjectProperty
+
+# local imports
+from .myrst import MyRstDocument
 
 # get path details
 if getattr(sys, 'frozen', False):
@@ -26,6 +29,7 @@ else:
     noto_font = os.path.abspath(os.path.join(base_path, "..", "data/fonts/NotoSans-Merged.ttf"))
 
 Builder.load_string('''
+#:import parse_color kivy.parser.parse_color
 
 <TempSpinWait>:
     id: temp_spin
@@ -42,6 +46,68 @@ Builder.load_string('''
         size_hint: None, None
         size: dp(14), dp(14)
         active: True
+
+<BotResp>:
+    orientation: 'vertical'
+    size_hint_y: None
+    size_hint_x: 0.9
+    pos_hint: {"x": 0}
+    height: self.minimum_height + dp(10)
+    padding: 4, 2
+    spacing: dp(2)
+    canvas.before:
+        Color:
+            rgb: parse_color('#78c3f5')
+        RoundedRectangle:
+            size: self.width, self.height
+            pos: self.pos
+            radius: [20, 20, 20, 0]
+
+    MyRstDocument:
+        base_font_size: 36
+        padding: 8
+        text: root.text
+        background_color: parse_color('#78c3f5')
+
+    MDFloatingActionButton:
+        icon: 'content-copy'
+        type: 'small'
+        theme_icon_color: "Custom"
+        md_bg_color: '#e9dff7'
+        icon_color: '#211c29'
+        on_release: app.copy_rst(self)
+
+<BotTmpResp>:
+    orientation: 'vertical'
+    size_hint_y: None
+    height: content.texture_size[1] + dp(24)
+    size_hint_x: 0.9
+    pos_hint: {"x": 0}
+    padding: 4, 2
+    spacing: dp(2)
+    canvas.before:
+        Color:
+            rgb: parse_color('#78c3f5')
+        RoundedRectangle:
+            size: self.width, self.height
+            pos: self.pos
+            radius: [20, 20, 20, 0]
+
+    MDLabel:
+        id: content
+        font_style: "Subtitle1"
+        text: root.text
+        valign: 'top'
+        halign: 'left'
+        padding: 8
+
+    MDFloatingActionButton:
+        icon: 'content-copy'
+        type: 'small'
+        theme_icon_color: "Custom"
+        md_bg_color: '#e9dff7'
+        icon_color: '#211c29'
+        on_release: app.copy_rst(self)
 
 <ChatbotScreen>:
     #on_enter: app.update_chatbot_welcome(self)
@@ -131,6 +197,16 @@ Builder.load_string('''
 
 class TempSpinWait(MDBoxLayout):
     pass
+
+class BotTmpResp(MDBoxLayout):
+    text = StringProperty("")
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+class BotResp(MDBoxLayout):
+    text = StringProperty("")
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
 class ChatbotScreen(MDScreen):
     noto_path = StringProperty()
