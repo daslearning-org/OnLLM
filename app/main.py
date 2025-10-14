@@ -57,13 +57,8 @@ else:
     base_path = os.path.dirname(os.path.abspath(__file__))
 kv_file_path = os.path.join(base_path, 'main_layout.kv')
 noto_font = os.path.join(base_path, "data/fonts/NotoSans-Merged.ttf")
-try:
-    LabelBase.register(name="Default", fn_regular=noto_font)
-    print(f"Font loaded from: {noto_font}")
-except Exception as e:
-    print(f"Error in font loading: {e}")
 
-## debug
+## debug if any
 
 ## The KivyMD app
 class OnLlmApp(MDApp):

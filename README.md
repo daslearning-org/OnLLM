@@ -7,6 +7,8 @@ OnLLM is the platform to run `Large Language Model` (LLM) or SLM models using `O
 1. An inbuild chatbot to chat with the AI model(s).
 2. No trackers, no Ads, No data collection, completely Private.
 
+[![GitHub Downloads](https://img.shields.io/github/downloads/daslearning-org/OnLLM/total)](https://github.com/daslearning-org/OnLLM/releases)
+
 ## 📽️ Demo
 To be added later...
 
@@ -16,10 +18,18 @@ To be added...
 ## 🧑‍💻 Quickstart Guide
 
 ### 📱 Download & Run the Android App
-You can check the [Releases](https://github.com/daslearning-org/OnLLM/tags) and downlaod the latest version of the android app on your phone.
+You can check the [Releases](https://github.com/daslearning-org/OnLLM/tags) and downlaod the latest version of the android app (APK file) on your phone.
 
 ### 💻 Download & Run the Windows or Linux App
-To be built later.
+You can check the [Releases](https://github.com/daslearning-org/OnLLM/releases) and downlaod the latest version of the application on your computer. If you are on `Windows`, download the `OnLLM_X.X.X.exe` file & double click to run it. If you are on `Linux`, download `OnLLM_Linux_XXX` file and run it.
+
+#### Notes:
+- Some Antivirus softwares might give you detection alert for the exe (happens for PyInstaller apps), you need to add an exception in that case.
+- On Linux you may need to change file permission to execute it.
+```bash
+chmod +x OnLLM_Linux_XXX
+./OnLLM_Linux_XXX
+```
 
 ### 🐍 Run with Python
 
@@ -76,4 +86,21 @@ pip install -r req_android.txt
 
 # build the android apk
 buildozer android debug # this may take a good amount of time for the first time & will generate the apk in the bin directory
+```
+
+### 🖳 Build Computer Application (Windows / Linux / MacOS)
+A `Python` virtual environment is recommended and will use `PyInstaller` to package it.
+
+```bash
+# install pyinstaller
+git clone https://github.com/daslearning-org/OnLLM.git
+cd OnLLM/app/
+python3.11 -m venv .env # create python virtual environment
+source .env/bin/activate
+pip install -r requirements.txt
+pip install pyinstaller
+
+# then update the spec file as needed
+# then build your app which will be native to the OS i.e. Linux or Windows or MAC
+pyinstaller desktopApp.spec
 ```
