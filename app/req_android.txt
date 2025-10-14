@@ -6,4 +6,3 @@ m2r2
 numpy
 onnxruntime
 tokenizers
-transformers
