@@ -7,6 +7,8 @@ OnLLM is the platform to run `Large Language Model` (LLM) or SLM models using `O
 1. An inbuild chatbot to chat with the AI model(s).
 2. No trackers, no Ads, No data collection, completely Private.
 
+[![GitHub Downloads](https://img.shields.io/github/downloads/daslearning-org/OnLLM/total)](https://github.com/daslearning-org/OnLLM/releases)
+
 ## 📽️ Demo
 To be added later...
 
@@ -76,4 +78,21 @@ pip install -r req_android.txt
 
 # build the android apk
 buildozer android debug # this may take a good amount of time for the first time & will generate the apk in the bin directory
+```
+
+### 🖳 Build Computer Application (Windows / Linux / MacOS)
+A `Python` virtual environment is recommended and will use `PyInstaller` to package it.
+
+```bash
+# install pyinstaller
+git clone https://github.com/daslearning-org/OnLLM.git
+cd OnLLM/app/
+python3.11 -m venv .env # create python virtual environment
+source .env/bin/activate
+pip install -r requirements.txt
+pip install pyinstaller
+
+# then update the spec file as needed
+# then build your app which will be native to the OS i.e. Linux or Windows or MAC
+pyinstaller desktopApp.spec
 ```
