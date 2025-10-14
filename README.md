@@ -18,10 +18,18 @@ To be added...
 ## 🧑‍💻 Quickstart Guide
 
 ### 📱 Download & Run the Android App
-You can check the [Releases](https://github.com/daslearning-org/OnLLM/tags) and downlaod the latest version of the android app on your phone.
+You can check the [Releases](https://github.com/daslearning-org/OnLLM/tags) and downlaod the latest version of the android app (APK file) on your phone.
 
 ### 💻 Download & Run the Windows or Linux App
-To be built later.
+You can check the [Releases](https://github.com/daslearning-org/OnLLM/releases) and downlaod the latest version of the application on your computer. If you are on `Windows`, download the `OnLLM_X.X.X.exe` file & double click to run it. If you are on `Linux`, download `OnLLM_Linux_XXX` file and run it.
+
+#### Notes:
+- Some Antivirus softwares might give you detection alert for the exe (happens for PyInstaller apps), you need to add an exception in that case.
+- On Linux you may need to change file permission to execute it.
+```bash
+chmod +x OnLLM_Linux_XXX
+./OnLLM_Linux_XXX
+```
 
 ### 🐍 Run with Python
 
