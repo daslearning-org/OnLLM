@@ -19,10 +19,11 @@ from kivy.properties import StringProperty, NumericProperty, ObjectProperty
 if getattr(sys, 'frozen', False):
     # Running as a PyInstaller bundle
     base_path = sys._MEIPASS
+    noto_font = os.path.join(base_path, "data/fonts/NotoSans-Merged.ttf")
 else:
     # Running in a normal Python environment
     base_path = os.path.dirname(os.path.abspath(__file__))
-noto_font = os.path.abspath(os.path.join(base_path, "..","data/fonts/NotoSans-Merged.ttf"))
+    noto_font = os.path.abspath(os.path.join(base_path, "..", "data/fonts/NotoSans-Merged.ttf"))
 
 Builder.load_string('''
 

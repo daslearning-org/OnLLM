@@ -58,7 +58,7 @@ else:
 kv_file_path = os.path.join(base_path, 'main_layout.kv')
 noto_font = os.path.join(base_path, "data/fonts/NotoSans-Merged.ttf")
 
-## debug
+## debug if any
 
 ## The KivyMD app
 class OnLlmApp(MDApp):

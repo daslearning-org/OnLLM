@@ -1,3 +1,5 @@
+import os, sys
+
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
@@ -7,6 +9,17 @@ from kivy.uix.widget import Widget
 from kivy.uix.image import Image
 from kivy.lang import Builder
 from kivy.metrics import dp, sp
+from kivy.properties import StringProperty, NumericProperty, ObjectProperty
+
+# get path details
+if getattr(sys, 'frozen', False):
+    # Running as a PyInstaller bundle
+    base_path = sys._MEIPASS
+    favicon = os.path.join(base_path, "data/images/favicon.png")
+else:
+    # Running in a normal Python environment
+    base_path = os.path.dirname(os.path.abspath(__file__))
+    favicon = os.path.abspath(os.path.join(base_path, "..", "data/images/favicon.png"))
 
 Builder.load_string('''
 
@@ -19,7 +32,7 @@ Builder.load_string('''
         spacing: dp(24)
 
         Image:
-            source: 'data/images/favicon.png'
+            source: root.fav_path
             fit_mode: 'contain'
             size_hint_y: 0.2
 
@@ -52,6 +65,8 @@ Builder.load_string('''
 ''')
 
 class WelcomeScreen(MDScreen):
+    fav_path = StringProperty()
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.name = 'welcome_screen'
+        self.fav_path = favicon

@@ -5,8 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=['.'],
     binaries=[],
-    datas=collect_data_files('app') + # add all paths which are required
-    [
+    datas=[ #collect_data_files('app') + # add all paths which are required
         ('data', 'data'),
         ('screens', 'screens'),
         ('main_layout.kv', '.')
