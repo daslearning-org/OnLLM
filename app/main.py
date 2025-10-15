@@ -46,7 +46,7 @@ from screens.welcome import WelcomeScreen
 Window.softinput_mode = "below_target"
 
 ## Global definitions
-__version__ = "0.0.2" # The APP version
+__version__ = "0.0.3" # The APP version
 
 # Determine the base path for your application's resources
 if getattr(sys, 'frozen', False):
