@@ -163,14 +163,21 @@ Builder.load_string('''
 
     MDBoxLayout: # main box
         orientation: 'vertical'
-        padding: 8, 0, 8, 0 # left, top, right, bottom
-        spacing: dp(4)
+        #padding: 8, 0, 8, 0 # left, top, right, bottom
+        #spacing: dp(4)
 
         MDBoxLayout: # top button group
             orientation: 'horizontal'
             adaptive_height: True
             #size_hint_y: 0.1
             spacing: dp(10)
+            padding: 4, 0, 4, 8
+            canvas.before:
+                Color:
+                    rgb: parse_color('#dfcaeb')
+                Rectangle:
+                    size: self.width, self.height
+                    pos: self.pos
 
             MDFillRoundFlatIconButton:
                 icon: "chat"
@@ -206,7 +213,7 @@ Builder.load_string('''
             canvas.before:
                 Color:
                     rgb: parse_color('#262625')
-                RoundedRectangle:
+                Rectangle:
                     size: self.width, self.height
                     pos: self.pos
 
@@ -219,11 +226,11 @@ Builder.load_string('''
                 size_hint_y: None
                 height: self.minimum_height
 
-        MDBoxLayout: # Input box
+        MDBoxLayout: # Input box with Send button
             size_hint_y: 0.2
             orientation: 'horizontal'
             spacing: dp(5)
-            padding: 0, 0, 0, 8 # left, top, right, bottom
+            padding: 8, 4, 8, 8 # left, top, right, bottom
             adaptive_height: True
 
             MDTextField:

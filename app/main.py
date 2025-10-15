@@ -167,7 +167,6 @@ class OnLlmApp(MDApp):
         token_drop_items = [
             {
                 "text": f"{tkn_size}",
-                "leading_icon": "robot-happy",
                 "on_release": lambda x=f"{tkn_size}": self.token_menu_callback(x),
                 "font_size": sp(24)
             } for tkn_size in token_sizes
