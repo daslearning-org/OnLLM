@@ -39,7 +39,7 @@ from m2r2 import convert
 
 # local imports
 from screens.myrst import MyRstDocument
-from screens.chatbot_screen import TempSpinWait, ChatbotScreen, BotResp, BotTmpResp
+from screens.chatbot_screen import TempSpinWait, ChatbotScreen, BotResp, BotTmpResp, UsrResp
 from screens.welcome import WelcomeScreen
 
 # IMPORTANT: Set this property for keyboard behavior
@@ -212,6 +212,10 @@ class OnLlmApp(MDApp):
         self.init_onnx_sess()
         self.root.current = "chatbot_screen"
 
+    def stop_chat(self):
+        self.stop = True
+        self.is_llm_running = False
+
     def new_chat(self):
         self.stop = True
         self.is_llm_running = False
@@ -374,7 +378,7 @@ class OnLlmApp(MDApp):
         self.chat_history_id.add_widget(bot_msg_label)
 
     def copy_rst(self, instance):
-        rst_txt = instance.parent.text
+        rst_txt = instance.parent.parent.text
         Clipboard.copy(rst_txt)
 
     def label_copy(self, label_text):
@@ -384,18 +388,8 @@ class OnLlmApp(MDApp):
 
     def add_usr_message(self, msg_to_add):
         # Adds the User msg into chat history
-        usr_msg_label = MDLabel(
-            size_hint_y=None,
-            markup=True,
-            halign='right',
-            valign='top',
-            padding=[dp(10), dp(10)],
-            font_style="Subtitle1",
-            allow_selection = True,
-            allow_copy = True,
-            text = f"{msg_to_add}",
-        )
-        usr_msg_label.bind(texture_size=usr_msg_label.setter('size'))
+        usr_msg_label = UsrResp()
+        usr_msg_label.text = msg_to_add
         self.chat_history_id.add_widget(usr_msg_label)
 
     def send_message(self, button_instance, chat_input_widget):
@@ -404,7 +398,7 @@ class OnLlmApp(MDApp):
             return
         user_message = chat_input_widget.text.strip()
         if user_message:
-            user_message_add = f"[b][color=#2196F3]You:[/color][/b] {user_message}"
+            user_message_add = f"{user_message}"
             self.messages.append(
                 {
                     "role": "user",
@@ -552,7 +546,7 @@ class OnLlmApp(MDApp):
                     past_key_values[key] = present_key_values[j]
 
                 #generated_tokens = np.concatenate([generated_tokens, input_ids], axis=-1)
-                if (input_ids == self.eos_token_id).any() or self.stop:
+                if (input_ids == self.eos_token_id).all() or self.stop:
                     break
 
                 ## (Optional) Streaming (use tokenizer.decode)

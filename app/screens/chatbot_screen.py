@@ -47,6 +47,33 @@ Builder.load_string('''
         size: dp(14), dp(14)
         active: True
 
+<UsrResp>:
+    orientation: 'vertical'
+    size_hint_y: None
+    height: content.texture_size[1] + dp(20)
+    size_hint_x: 0.6
+    pos_hint: {"right": 1}
+    padding: 4, 2
+    spacing: dp(2)
+    canvas.before:
+        Color:
+            rgb: parse_color('#c0d9bd')
+        RoundedRectangle:
+            size: self.width, self.height
+            pos: self.pos
+            radius: [20, 20, 0, 20]
+
+    MDLabel:
+        id: content
+        font_style: "Subtitle1"
+        text: root.text
+        markup: True
+        #valign: 'top'
+        halign: 'right'
+        allow_selection: True,
+        allow_copy: True,
+        padding: 8
+
 <BotResp>:
     orientation: 'vertical'
     size_hint_y: None
@@ -57,7 +84,7 @@ Builder.load_string('''
     spacing: dp(2)
     canvas.before:
         Color:
-            rgb: parse_color('#78c3f5')
+            rgb: parse_color('#eddbb7')
         RoundedRectangle:
             size: self.width, self.height
             pos: self.pos
@@ -67,27 +94,32 @@ Builder.load_string('''
         base_font_size: 36
         padding: 8
         text: root.text
-        background_color: parse_color('#78c3f5')
+        background_color: parse_color('#eddbb7')
 
-    MDFloatingActionButton:
-        icon: 'content-copy'
-        type: 'small'
-        theme_icon_color: "Custom"
-        md_bg_color: '#e9dff7'
-        icon_color: '#211c29'
-        on_release: app.copy_rst(self)
+    MDBoxLayout:
+        orientation: 'horizontal'
+        padding: dp(4)
+        Widget:
+            size_hint_x: 1
+        MDFloatingActionButton:
+            icon: 'content-copy'
+            type: 'small'
+            theme_icon_color: "Custom"
+            md_bg_color: '#e9dff7'
+            icon_color: '#211c29'
+            on_release: app.copy_rst(self)
 
 <BotTmpResp>:
     orientation: 'vertical'
     size_hint_y: None
-    height: content.texture_size[1] + dp(24)
+    height: content.texture_size[1] + dp(32)
     size_hint_x: 0.9
     pos_hint: {"x": 0}
     padding: 4, 2
     spacing: dp(2)
     canvas.before:
         Color:
-            rgb: parse_color('#78c3f5')
+            rgb: parse_color('#eddbb7')
         RoundedRectangle:
             size: self.width, self.height
             pos: self.pos
@@ -101,13 +133,25 @@ Builder.load_string('''
         halign: 'left'
         padding: 8
 
-    MDFloatingActionButton:
-        icon: 'content-copy'
-        type: 'small'
-        theme_icon_color: "Custom"
-        md_bg_color: '#e9dff7'
-        icon_color: '#211c29'
-        on_release: app.copy_rst(self)
+    MDBoxLayout:
+        orientation: 'horizontal'
+        spacing: dp(4)
+        Widget:
+            size_hint_x: 1
+        MDFloatingActionButton:
+            icon: 'content-copy'
+            type: 'small'
+            theme_icon_color: "Custom"
+            md_bg_color: '#e9dff7'
+            icon_color: '#211c29'
+            on_release: app.copy_rst(self)
+        MDFloatingActionButton:
+            icon: 'stop'
+            type: 'small'
+            theme_icon_color: "Custom"
+            md_bg_color: '#e9dff7'
+            icon_color: '#211c29'
+            on_release: app.stop_chat()
 
 <ChatbotScreen>:
     #on_enter: app.update_chatbot_welcome(self)
@@ -125,7 +169,7 @@ Builder.load_string('''
 
             MDFillRoundFlatIconButton:
                 icon: "chat"
-                text: "New Chat"
+                text: "New"
                 md_bg_color: '#333036'
                 font_size: sp(10)
                 on_release: app.new_chat()
@@ -197,6 +241,11 @@ Builder.load_string('''
 
 class TempSpinWait(MDBoxLayout):
     pass
+
+class UsrResp(MDBoxLayout):
+    text = StringProperty("")
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
 class BotTmpResp(MDBoxLayout):
     text = StringProperty("")
