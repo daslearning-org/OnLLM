@@ -38,15 +38,15 @@ from tokenizers import Tokenizer
 from m2r2 import convert
 
 # local imports
-from myrst import MyRstDocument
-from screens.chatbot_screen import TempSpinWait, ChatbotScreen
+from screens.myrst import MyRstDocument
+from screens.chatbot_screen import TempSpinWait, ChatbotScreen, BotResp, BotTmpResp, UsrResp
 from screens.welcome import WelcomeScreen
 
 # IMPORTANT: Set this property for keyboard behavior
 Window.softinput_mode = "below_target"
 
 ## Global definitions
-__version__ = "0.0.2" # The APP version
+__version__ = "0.0.3" # The APP version
 
 # Determine the base path for your application's resources
 if getattr(sys, 'frozen', False):
@@ -167,7 +167,6 @@ class OnLlmApp(MDApp):
         token_drop_items = [
             {
                 "text": f"{tkn_size}",
-                "leading_icon": "robot-happy",
                 "on_release": lambda x=f"{tkn_size}": self.token_menu_callback(x),
                 "font_size": sp(24)
             } for tkn_size in token_sizes
@@ -211,6 +210,10 @@ class OnLlmApp(MDApp):
             return
         self.init_onnx_sess()
         self.root.current = "chatbot_screen"
+
+    def stop_chat(self):
+        self.stop = True
+        self.is_llm_running = False
 
     def new_chat(self):
         self.stop = True
@@ -366,28 +369,24 @@ class OnLlmApp(MDApp):
         self.token_count = int(text)
         self.root.ids.chatbot_scr.ids.token_menu.text = text
 
-    def add_bot_message(self, msg_to_add):
+    def add_bot_message(self, msg_to_add, msg_id):
         # Adds the Bot msg into chat history
         rst_txt = convert(msg_to_add)
-        bot_msg_label = MyRstDocument(
-            text = rst_txt,
-            base_font_size=36,
-            padding=[dp(10), dp(10)],
-            background_color = self.theme_cls.bg_normal
-        )
-        copy_btn = MDFloatingActionButton(
-            icon="content-copy",
-            type="small",
-            theme_icon_color="Custom",
-            md_bg_color='#e9dff7',
-            icon_color='#211c29',
-        )
-        copy_btn.bind(on_release=self.copy_rst)
-        bot_msg_label.add_widget(copy_btn)
+        bot_msg_label = BotResp()
+        bot_msg_label.text = rst_txt
+        bot_msg_label.given_id = msg_id
         self.chat_history_id.add_widget(bot_msg_label)
 
-    def copy_rst(self, instance):
-        rst_txt = instance.parent.text
+    def copy_tmp_msg(self, instance):
+        rst_txt = instance.parent.parent.text
+        Clipboard.copy(rst_txt)
+
+    def copy_final_msg(self, instance):
+        given_id = int(instance.parent.parent.given_id)
+        if given_id == 999:
+            rst_txt = instance.parent.parent.text
+        else:
+            rst_txt = str(self.messages[given_id]["content"])
         Clipboard.copy(rst_txt)
 
     def label_copy(self, label_text):
@@ -397,18 +396,8 @@ class OnLlmApp(MDApp):
 
     def add_usr_message(self, msg_to_add):
         # Adds the User msg into chat history
-        usr_msg_label = MDLabel(
-            size_hint_y=None,
-            markup=True,
-            halign='right',
-            valign='top',
-            padding=[dp(10), dp(10)],
-            font_style="Subtitle1",
-            allow_selection = True,
-            allow_copy = True,
-            text = f"{msg_to_add}",
-        )
-        usr_msg_label.bind(texture_size=usr_msg_label.setter('size'))
+        usr_msg_label = UsrResp()
+        usr_msg_label.text = msg_to_add
         self.chat_history_id.add_widget(usr_msg_label)
 
     def send_message(self, button_instance, chat_input_widget):
@@ -417,7 +406,7 @@ class OnLlmApp(MDApp):
             return
         user_message = chat_input_widget.text.strip()
         if user_message:
-            user_message_add = f"[b][color=#2196F3]You:[/color][/b] {user_message}"
+            user_message_add = f"{user_message}"
             self.messages.append(
                 {
                     "role": "user",
@@ -426,18 +415,7 @@ class OnLlmApp(MDApp):
             )
             self.add_usr_message(user_message_add)
             chat_input_widget.text = "" # blank the input
-            self.tmp_txt = MDLabel(
-                size_hint_y=None,
-                #markup=True,
-                halign='left',
-                valign='top',
-                padding=[dp(10), dp(10)],
-                font_style="Subtitle1",
-                allow_selection = True,
-                allow_copy = True,
-                text = "",
-            )
-            self.tmp_txt.bind(texture_size=self.tmp_txt.setter('size'))
+            self.tmp_txt = BotTmpResp()
             self.chat_history_id.add_widget(self.tmp_txt)
             msg_to_send = [{"role": "system", "content": "You are a helpful assistant."}]
             msg_to_send.extend(self.messages[-3:]) # taking last three messages only
@@ -576,7 +554,7 @@ class OnLlmApp(MDApp):
                     past_key_values[key] = present_key_values[j]
 
                 #generated_tokens = np.concatenate([generated_tokens, input_ids], axis=-1)
-                if (input_ids == self.eos_token_id).any() or self.stop:
+                if (input_ids == self.eos_token_id).all() or self.stop:
                     break
 
                 ## (Optional) Streaming (use tokenizer.decode)
@@ -601,10 +579,13 @@ class OnLlmApp(MDApp):
     def final_llm_result(self, llm_resp):
         if llm_resp["role"] == "assistant":
             self.messages.append(llm_resp)
+            msg_id = len(self.messages) - 1
+        else:
+            msg_id = 999
         self.is_llm_running = False
         txt = llm_resp["content"]
         self.chat_history_id.remove_widget(self.tmp_txt)
-        self.add_bot_message(msg_to_add=txt)
+        self.add_bot_message(msg_to_add=txt, msg_id=msg_id)
 
     def update_chatbot_welcome(self, screen_instance):
         print("we are in...")
