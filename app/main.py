@@ -370,15 +370,24 @@ class OnLlmApp(MDApp):
         self.token_count = int(text)
         self.root.ids.chatbot_scr.ids.token_menu.text = text
 
-    def add_bot_message(self, msg_to_add):
+    def add_bot_message(self, msg_to_add, msg_id):
         # Adds the Bot msg into chat history
         rst_txt = convert(msg_to_add)
         bot_msg_label = BotResp()
         bot_msg_label.text = rst_txt
+        bot_msg_label.given_id = msg_id
         self.chat_history_id.add_widget(bot_msg_label)
 
-    def copy_rst(self, instance):
+    def copy_tmp_msg(self, instance):
         rst_txt = instance.parent.parent.text
+        Clipboard.copy(rst_txt)
+
+    def copy_final_msg(self, instance):
+        given_id = int(instance.parent.parent.given_id)
+        if given_id == 999:
+            rst_txt = instance.parent.parent.text
+        else:
+            rst_txt = str(self.messages[given_id]["content"])
         Clipboard.copy(rst_txt)
 
     def label_copy(self, label_text):
@@ -571,10 +580,13 @@ class OnLlmApp(MDApp):
     def final_llm_result(self, llm_resp):
         if llm_resp["role"] == "assistant":
             self.messages.append(llm_resp)
+            msg_id = len(self.messages) - 1
+        else:
+            msg_id = 999
         self.is_llm_running = False
         txt = llm_resp["content"]
         self.chat_history_id.remove_widget(self.tmp_txt)
-        self.add_bot_message(msg_to_add=txt)
+        self.add_bot_message(msg_to_add=txt, msg_id=msg_id)
 
     def update_chatbot_welcome(self, screen_instance):
         print("we are in...")

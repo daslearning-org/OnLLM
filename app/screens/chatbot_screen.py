@@ -51,6 +51,7 @@ Builder.load_string('''
     orientation: 'vertical'
     size_hint_y: None
     height: content.texture_size[1] + dp(20)
+    size_hint_x: None
     size_hint_x: 0.6
     pos_hint: {"right": 1}
     padding: 4, 2
@@ -99,6 +100,8 @@ Builder.load_string('''
     MDBoxLayout:
         orientation: 'horizontal'
         padding: dp(4)
+        size_hint_y: None
+        height: self.minimum_height
         Widget:
             size_hint_x: 1
         MDFloatingActionButton:
@@ -107,7 +110,7 @@ Builder.load_string('''
             theme_icon_color: "Custom"
             md_bg_color: '#e9dff7'
             icon_color: '#211c29'
-            on_release: app.copy_rst(self)
+            on_release: app.copy_final_msg(self)
 
 <BotTmpResp>:
     orientation: 'vertical'
@@ -136,6 +139,8 @@ Builder.load_string('''
     MDBoxLayout:
         orientation: 'horizontal'
         spacing: dp(4)
+        size_hint_y: None
+        height: self.minimum_height
         Widget:
             size_hint_x: 1
         MDFloatingActionButton:
@@ -144,7 +149,7 @@ Builder.load_string('''
             theme_icon_color: "Custom"
             md_bg_color: '#e9dff7'
             icon_color: '#211c29'
-            on_release: app.copy_rst(self)
+            on_release: app.copy_tmp_msg(self)
         MDFloatingActionButton:
             icon: 'stop'
             type: 'small'
@@ -198,17 +203,21 @@ Builder.load_string('''
         MDScrollView: # chat history section with scroll enabled
             size_hint_y: 0.7 # Takes the 70%
             adaptive_height: True
+            canvas.before:
+                Color:
+                    rgb: parse_color('#262625')
+                RoundedRectangle:
+                    size: self.width, self.height
+                    pos: self.pos
 
+            # all chats will be added under this box
             MDBoxLayout:
                 id: chat_history_id
+                padding: dp(4)
                 orientation: 'vertical'
                 spacing: dp(10)
-                #adaptive_height: True
                 size_hint_y: None
                 height: self.minimum_height
-
-                #MDLabel:
-                #    id: chat_label # chat which will be added
 
         MDBoxLayout: # Input box
             size_hint_y: 0.2
@@ -254,6 +263,7 @@ class BotTmpResp(MDBoxLayout):
 
 class BotResp(MDBoxLayout):
     text = StringProperty("")
+    given_id = NumericProperty()
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
