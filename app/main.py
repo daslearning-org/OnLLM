@@ -115,7 +115,9 @@ class OnLlmApp(MDApp):
                 "name": "smollm2-135m",
                 "url": "https://github.com/daslearning-org/OnLLM/releases/download/vOnnxModels/smollm2-135m.tar.gz",
                 "size": "95MB",
-                "platform": "all"
+                "platform": "all",
+                "tokens": ["", "<|im_start|>", "<|im_end|>"],
+                "eos_ids": ["<|endoftext|>"]
             }
         }
         if platform == "android":
@@ -492,19 +494,22 @@ class OnLlmApp(MDApp):
             self.show_toast_msg("Please type a message!", is_error=True)
 
     def apply_chat_template(self, messages, add_generation_prompt=False, tokenize=True, return_tensors="np"):
-        prompt = ""  # no initials
+        init_prompt = self.llm_models[self.selected_llm]['tokens'][0]
+        start_prompt = self.llm_models[self.selected_llm]['tokens'][1]
+        end_prompt = self.llm_models[self.selected_llm]['tokens'][2]
+        prompt = init_prompt
         for msg in messages:
             role = msg["role"]
             content = msg["content"].strip()  # Strip for cleanliness
             if role == "system":
-                prompt += f"<|im_start|>system\n{content}<|im_end|>\n"
+                prompt += f"{start_prompt}system\n{content}{end_prompt}\n"
             elif role == "user":
-                prompt += f"<|im_start|>user\n{content}<|im_end|>\n"
+                prompt += f"{start_prompt}user\n{content}{end_prompt}\n"
             elif role == "assistant" or role == "model":
-                prompt += f"<|im_start|>assistant\n{content}<|im_end|>\n"
+                prompt += f"{start_prompt}assistant\n{content}{end_prompt}\n"
 
         if add_generation_prompt:
-            prompt += "<|im_start|>assistant\n"
+            prompt += f"{start_prompt}assistant\n"
 
         if not tokenize:
             return prompt
@@ -548,10 +553,14 @@ class OnLlmApp(MDApp):
             self.num_key_value_heads = config_data["num_key_value_heads"]
             self.head_dim = config_data["head_dim"]
             self.num_hidden_layers = config_data["num_hidden_layers"]
+            primary_eos = self.llm_models[self.selected_llm]["tokens"][2]
+            other_eos = self.llm_models[self.selected_llm]["eos_ids"]
             self.eos_token_ids = [
-                self.tokenizer.token_to_id("<|im_end|>"),
-                self.tokenizer.token_to_id("<|endoftext|>")
+                self.tokenizer.token_to_id(primary_eos),
             ]
+            for eos in other_eos:
+                eos_item = self.tokenizer.token_to_id(str(eos))
+                self.eos_token_ids.append(eos_item)
 
             if platform == "android" or arm_android:
                 self.decoder_session = InferenceSession(f"{path_to_model}/onnx/model_int8.onnx", providers=android_providers)
