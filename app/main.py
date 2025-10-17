@@ -115,7 +115,7 @@ class OnLlmApp(MDApp):
                 "name": "smollm2-135m",
                 "url": "https://github.com/daslearning-org/OnLLM/releases/download/vOnnxModels/smollm2-135m.tar.gz",
                 "size": "95MB",
-                "platform": "all",
+                "platform": "android", # means runs on all
                 "tokens": ["", "<|im_start|>", "<|im_end|>"],
                 "eos_ids": ["<|endoftext|>"]
             }
@@ -250,9 +250,14 @@ class OnLlmApp(MDApp):
                 with open(self.extra_models_config, "r") as modelfile:
                     model_json_obj = json.load(modelfile)
                 for model in model_json_obj:
-                    if (not model in self.llm_models) and (model_json_obj[model]['platform'] in ("all", platform)):
-                        self.llm_models[model] = model_json_obj[model]
-                        flag = True
+                    if (not model in self.llm_models):
+                        if platform == "android":
+                            if model_json_obj[model]['platform'] == "android":
+                                self.llm_models[model] = model_json_obj[model]
+                                flag = True
+                        else:
+                            self.llm_models[model] = model_json_obj[model]
+                            flag = True
         except Exception as e:
             print(f"Cannot get the extra models json from GitHub: {e}")
         if flag:
