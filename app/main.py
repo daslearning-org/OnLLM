@@ -114,7 +114,8 @@ class OnLlmApp(MDApp):
             "smollm2-135m": {
                 "name": "smollm2-135m",
                 "url": "https://github.com/daslearning-org/OnLLM/releases/download/vOnnxModels/smollm2-135m.tar.gz",
-                "size": "95MB"
+                "size": "95MB",
+                "platform": "all"
             }
         }
         if platform == "android":
@@ -237,7 +238,7 @@ class OnLlmApp(MDApp):
             return True
 
     def model_sync_on_init(self, branch="develop"):
-        url = f"https://github.com/daslearning-org/OnLLM/raw/{branch}/app/extra_models.json"
+        url = f"https://raw.githubusercontent.com/daslearning-org/OnLLM/{branch}/app/extra_models.json"
         filename = url.split("/")[-1]
         flag = False
         try:
@@ -247,7 +248,7 @@ class OnLlmApp(MDApp):
                 with open(self.extra_models_config, "r") as modelfile:
                     model_json_obj = json.load(modelfile)
                 for model in model_json_obj:
-                    if not model in self.llm_models:
+                    if (not model in self.llm_models) and (model_json_obj[model]['platform'] == "all" or model_json_obj[model]['platform'] == platform):
                         self.llm_models[model] = model_json_obj[model]
                         flag = True
         except Exception as e:
@@ -285,6 +286,7 @@ class OnLlmApp(MDApp):
 
     def download_file(self, download_url, download_path):
         filename = download_url.split("/")[-1]
+        filename = filename.replace("?download=true", "")
         try:
             self.is_downloading = filename
             with requests.get(download_url, stream=True) as req:
@@ -407,6 +409,9 @@ class OnLlmApp(MDApp):
         check_model = self.check_model_files(text_item)
         llm_size = self.llm_models[text_item]['size']
         if not check_model:
+            if self.is_downloading:
+                self.show_toast_msg("Please wait for the current download to finish", is_error=True, duration=2)
+                return
             self.to_download_model = text_item
             self.model_file_size = f"You need to downlaod the file for the first time (~{llm_size})"
             self.popup_download_model()
