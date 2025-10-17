@@ -3,6 +3,6 @@
         "name": "smollm2-360m",
         "url": "https://huggingface.co/daslearning/SmolLM2-IT-Onnx/resolve/main/onnx/smollm2-360m.tar.gz?download=true",
         "size": "241MB",
-        "platform": "andy"
+        "platform": "linux"
     }
 }
