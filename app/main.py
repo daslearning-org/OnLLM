@@ -202,15 +202,9 @@ class OnLlmApp(MDApp):
             caller=self.root.ids.chatbot_scr.ids.llm_menu,
             items=[],
         )
+        self.llm_menu.items = menu_items
         if stage == "init":
-            if len(self.llm_models) >= 1:
-                self.selected_llm = menu_items[0]["text"]
-                self.llm_menu.items = menu_items
-            else:
-                # pop up to be added in case of none & disable input
-                print("No LLM found!")
-                self.llm_menu.items = []
-                self.selected_llm = "None"
+            self.selected_llm = menu_items[0]["text"]
         self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
 
     def start_from_welcome(self):
@@ -244,8 +238,11 @@ class OnLlmApp(MDApp):
         filename = url.split("/")[-1]
         flag = False
         try:
-            import urllib.request
-            urllib.request.urlretrieve(url, self.extra_models_config)
+            import certifi
+            response = requests.get(url, verify=certifi.where(), timeout=10)
+            response.raise_for_status()
+            with open(self.extra_models_config, "wb") as f:
+                f.write(response.content)
             if os.path.exists(self.extra_models_config):
                 with open(self.extra_models_config, "r") as modelfile:
                     model_json_obj = json.load(modelfile)
