@@ -84,7 +84,7 @@ class OnLlmApp(MDApp):
             "Demo": {
                 "icon": "youtube",
                 "action": "web",
-                "url": "https://www.youtube.com/playlist?list=PL7ZAVvBwIkXYJPUA3Wvkykk0u7DYWO3OI", # TBA
+                "url": "https://www.youtube.com/watch?v=D-KwL59GgKA",
             },
             "Documentation": {
                 "icon": "file-document-check",
