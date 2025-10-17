@@ -46,7 +46,7 @@ from screens.welcome import WelcomeScreen
 Window.softinput_mode = "below_target"
 
 ## Global definitions
-__version__ = "0.0.3" # The APP version
+__version__ = "0.1.0" # The APP version
 
 # Determine the base path for your application's resources
 if getattr(sys, 'frozen', False):
@@ -109,12 +109,12 @@ class OnLlmApp(MDApp):
         return Builder.load_file(kv_file_path)
 
     def on_start(self):
-        self.llm_models = [
-            {
+        self.llm_models = {
+            "smollm2-135m": {
                 "name": "smollm2-135m",
                 "url": "https://github.com/daslearning-org/OnLLM/releases/download/vOnnxModels/smollm2-135m.tar.gz"
             }
-        ]
+        }
         if platform == "android":
             # paths on android
             context = autoclass('org.kivy.android.PythonActivity').mActivity
@@ -155,7 +155,7 @@ class OnLlmApp(MDApp):
         self.chat_history_id.background_color = self.theme_cls.bg_normal
         menu_items = []
         for model in self.llm_models:
-            model_name = model["name"]
+            model_name = model
             tmp_menu = {
                 "text": f"{model_name}",
                 "leading_icon": "robot-happy",
@@ -197,7 +197,7 @@ class OnLlmApp(MDApp):
         print("Initialisation is successful")
 
     def start_from_welcome(self):
-        model_name = self.llm_models[0]['name']
+        model_name = "smollm2-135m"
         path_to_model = os.path.join(self.model_dir, f"{model_name}")
         model_config = os.path.join(path_to_model, "config.json")
         model_tokenizer = os.path.join(path_to_model, "tokenizer.json")
@@ -281,8 +281,8 @@ class OnLlmApp(MDApp):
         Thread(target=self.download_file, args=(model_url, download_path), daemon=True).start()
 
     def download_smol_135m_model(self, instance):
-        url = self.llm_models[0]['url']
-        model_name = self.llm_models[0]['name']
+        url = self.llm_models["smollm2-135m"]['url']
+        model_name = "smollm2-135m"
         path_to_model = os.path.join(self.model_dir, f"{model_name}.tar.gz")
         self.download_model_file(url, path_to_model, instance)
 
@@ -482,7 +482,10 @@ class OnLlmApp(MDApp):
             self.num_key_value_heads = config_data["num_key_value_heads"]
             self.head_dim = config_data["head_dim"]
             self.num_hidden_layers = config_data["num_hidden_layers"]
-            self.eos_token_id = self.tokenizer.token_to_id("<|im_end|>")
+            self.eos_token_ids = [
+                self.tokenizer.token_to_id("<|im_end|>"),
+                self.tokenizer.token_to_id("<|endoftext|>")
+            ]
 
             if platform == "android" or arm_android:
                 self.decoder_session = InferenceSession(f"{path_to_model}/onnx/model_int8.onnx", providers=android_providers)
@@ -554,7 +557,7 @@ class OnLlmApp(MDApp):
                     past_key_values[key] = present_key_values[j]
 
                 #generated_tokens = np.concatenate([generated_tokens, input_ids], axis=-1)
-                if (input_ids == self.eos_token_id).all() or self.stop:
+                if np.isin(input_ids, self.eos_token_ids).any() or self.stop:
                     break
 
                 ## (Optional) Streaming (use tokenizer.decode)
