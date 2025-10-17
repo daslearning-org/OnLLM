@@ -113,7 +113,8 @@ class OnLlmApp(MDApp):
         self.llm_models = {
             "smollm2-135m": {
                 "name": "smollm2-135m",
-                "url": "https://github.com/daslearning-org/OnLLM/releases/download/vOnnxModels/smollm2-135m.tar.gz"
+                "url": "https://github.com/daslearning-org/OnLLM/releases/download/vOnnxModels/smollm2-135m.tar.gz",
+                "size": "95MB"
             }
         }
         if platform == "android":
@@ -122,7 +123,7 @@ class OnLlmApp(MDApp):
             android_path = context.getExternalFilesDir(None).getAbsolutePath()
             self.model_dir = os.path.join(android_path, 'model_files')
             self.op_dir = os.path.join(android_path, 'outputs')
-            config_dir = os.path.join(android_path, 'config')
+            self.config_dir = os.path.join(android_path, 'config')
             self.internal_storage = android_path
             try:
                 Environment = autoclass("android.os.Environment")
@@ -133,11 +134,17 @@ class OnLlmApp(MDApp):
             self.internal_storage = os.path.expanduser("~")
             self.external_storage = os.path.expanduser("~")
             self.model_dir = os.path.join(self.user_data_dir, 'model_files')
-            config_dir = os.path.join(self.user_data_dir, 'config')
+            self.config_dir = os.path.join(self.user_data_dir, 'config')
             self.op_dir = os.path.join(self.user_data_dir, 'outputs')
         os.makedirs(self.model_dir, exist_ok=True)
         os.makedirs(self.op_dir, exist_ok=True)
-        os.makedirs(config_dir, exist_ok=True)
+        os.makedirs(self.config_dir, exist_ok=True)
+        self.extra_models_config = os.path.join(self.config_dir, 'extra_models.json')
+        if os.path.exists(self.extra_models_config):
+            with open(self.extra_models_config, "r") as modelfile:
+                model_json_obj = json.load(modelfile)
+            for model in model_json_obj:
+                self.llm_models[model] = model_json_obj[model]
         # hamburger menu
         menu_items = [
             {
@@ -154,7 +161,29 @@ class OnLlmApp(MDApp):
         ## the chatbot thing
         self.chat_history_id = self.root.ids.chatbot_scr.ids.chat_history_id
         self.chat_history_id.background_color = self.theme_cls.bg_normal
+        # llm models drop-down
+        self.set_llm_dropdown(stage="init")
+        # token drop-down
+        token_sizes = [128, 256, 512, 1024, 2048]
+        token_drop_items = [
+            {
+                "text": f"{tkn_size}",
+                "on_release": lambda x=f"{tkn_size}": self.token_menu_callback(x),
+                "font_size": sp(24)
+            } for tkn_size in token_sizes
+        ]
+        # token size menu
+        self.token_menu = MDDropdownMenu(
+            md_bg_color="#bdc6b0",
+            caller=self.root.ids.chatbot_scr.ids.token_menu,
+            items=token_drop_items,
+        )
+        self.root.ids.chatbot_scr.ids.token_menu.text = str(token_sizes[0])
+        print("Initialisation is successful")
+
+    def set_llm_dropdown(self, stage="post-init"):
         menu_items = []
+        # llm model drop-down items
         for model in self.llm_models:
             model_name = model
             tmp_menu = {
@@ -164,38 +193,22 @@ class OnLlmApp(MDApp):
                 "font_size": sp(24)
             }
             menu_items.append(tmp_menu)
-        token_sizes = [128, 256, 512, 1024]
-        token_drop_items = [
-            {
-                "text": f"{tkn_size}",
-                "on_release": lambda x=f"{tkn_size}": self.token_menu_callback(x),
-                "font_size": sp(24)
-            } for tkn_size in token_sizes
-        ]
         # model menu
         self.llm_menu = MDDropdownMenu(
             md_bg_color="#bdc6b0",
             caller=self.root.ids.chatbot_scr.ids.llm_menu,
             items=[],
         )
-        if len(self.llm_models) >= 1:
-            self.selected_llm = menu_items[0]["text"]
-            self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
-            self.llm_menu.items = menu_items
-        else:
-            # pop up to be added in case of none & disable input
-            print("No LLM found!")
-            self.llm_menu.items = []
-            self.selected_llm = "None"
-            self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
-        # token size menu
-        self.token_menu = MDDropdownMenu(
-            md_bg_color="#bdc6b0",
-            caller=self.root.ids.chatbot_scr.ids.token_menu,
-            items=token_drop_items,
-        )
-        self.root.ids.chatbot_scr.ids.token_menu.text = str(token_sizes[0])
-        print("Initialisation is successful")
+        if stage == "init":
+            if len(self.llm_models) >= 1:
+                self.selected_llm = menu_items[0]["text"]
+                self.llm_menu.items = menu_items
+            else:
+                # pop up to be added in case of none & disable input
+                print("No LLM found!")
+                self.llm_menu.items = []
+                self.selected_llm = "None"
+        self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
 
     def start_from_welcome(self):
         model_name = "smollm2-135m"
@@ -206,6 +219,7 @@ class OnLlmApp(MDApp):
         if not check_model:
             self.to_download_model = model_name
             self.download_progress = self.root.ids.welcome_scr.ids.download_stat
+            self.model_file_size = "You need to downlaod the file for the first time (~95MB)"
             self.popup_download_model()
             return
         self.init_onnx_sess()
@@ -221,6 +235,25 @@ class OnLlmApp(MDApp):
         else:
             return True
 
+    def model_sync_on_init(self, branch="develop"):
+        url = f"https://github.com/daslearning-org/OnLLM/raw/{branch}/app/extra_models.json"
+        filename = url.split("/")[-1]
+        flag = False
+        try:
+            import urllib.request
+            urllib.request.urlretrieve(url, self.extra_models_config)
+            if os.path.exists(self.extra_models_config):
+                with open(self.extra_models_config, "r") as modelfile:
+                    model_json_obj = json.load(modelfile)
+                for model in model_json_obj:
+                    if not model in self.llm_models:
+                        self.llm_models[model] = model_json_obj[model]
+                        flag = True
+        except Exception as e:
+            print(f"Cannot get the extra models json from GitHub: {e}")
+        if flag:
+            self.set_llm_dropdown()
+
     def popup_download_model(self):
         buttons = [
             MDFlatButton(
@@ -233,12 +266,12 @@ class OnLlmApp(MDApp):
                 text="Ok",
                 theme_text_color="Custom",
                 text_color="green",
-                on_release=self.download_smol_135m_model
+                on_release=self.initiate_model_download
             ),
         ]
         self.show_text_dialog(
             "Downlaod the model file",
-            f"You need to downlaod the file for the first time (~95MB)",
+            self.model_file_size,
             buttons
         )
 
@@ -279,7 +312,7 @@ class OnLlmApp(MDApp):
         print(f"Starting the download for: {filename}")
         Thread(target=self.download_file, args=(model_url, download_path), daemon=True).start()
 
-    def download_smol_135m_model(self, instance):
+    def initiate_model_download(self, instance):
         if self.to_download_model == "na":
             return
         model_name = self.to_download_model
@@ -361,6 +394,20 @@ class OnLlmApp(MDApp):
 
     def llm_menu_callback(self, text_item):
         self.llm_menu.dismiss()
+        check_model = self.check_model_files(text_item)
+        llm_size = self.llm_models[text_item]['size']
+        if not check_model:
+            self.to_download_model = text_item
+            self.download_progress = MDLabel(
+                text = "Starting download process...",
+                font_style = "Subtitle1",
+                halign = 'left',
+                adaptive_height = True
+            )
+            self.chat_history_id.add_widget(self.download_progress)
+            self.model_file_size = f"You need to downlaod the file for the first time (~{llm_size})"
+            self.popup_download_model()
+            return
         self.selected_llm = text_item
         self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
         self.init_onnx_sess(self.selected_llm)
