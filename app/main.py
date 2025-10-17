@@ -226,7 +226,7 @@ class OnLlmApp(MDApp):
             self.popup_download_model()
             return
         self.init_onnx_sess()
-        Thread(target=self.model_sync_on_init, args=("develop",), daemon=True).start()
+        Thread(target=self.model_sync_on_init, args=("main",), daemon=True).start()
         self.root.current = "chatbot_screen"
 
     def check_model_files(self, model_name):
@@ -250,7 +250,7 @@ class OnLlmApp(MDApp):
                 with open(self.extra_models_config, "r") as modelfile:
                     model_json_obj = json.load(modelfile)
                 for model in model_json_obj:
-                    if (not model in self.llm_models) and (model_json_obj[model]['platform'] == "all" or model_json_obj[model]['platform'] == platform):
+                    if (not model in self.llm_models) and (model_json_obj[model]['platform'] in ("all", platform)):
                         self.llm_models[model] = model_json_obj[model]
                         flag = True
         except Exception as e:
