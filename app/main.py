@@ -74,6 +74,7 @@ class OnLlmApp(MDApp):
         self.stop = False
         self.decoder_session = None
         self.selected_llm = ""
+        self.to_download_model = "na"
         self.messages = []
 
     def build(self):
@@ -198,30 +199,29 @@ class OnLlmApp(MDApp):
 
     def start_from_welcome(self):
         model_name = "smollm2-135m"
-        path_to_model = os.path.join(self.model_dir, f"{model_name}")
-        model_config = os.path.join(path_to_model, "config.json")
-        model_tokenizer = os.path.join(path_to_model, "tokenizer.json")
-        model_onnx = os.path.join(path_to_model, "onnx", "model_int8.onnx")
-        if self.is_downloading:
+        if self.is_downloading == model_name:
             self.show_toast_msg("Please wait for the downlaod to complete!", is_error=True)
             return
-        if not os.path.exists(model_config) or not os.path.exists(model_tokenizer) or not os.path.exists(model_onnx):
-            self.popup_smol135m_model()
+        check_model = self.check_model_files(model_name)
+        if not check_model:
+            self.to_download_model = model_name
+            self.download_progress = self.root.ids.welcome_scr.ids.download_stat
+            self.popup_download_model()
             return
         self.init_onnx_sess()
         self.root.current = "chatbot_screen"
 
-    def stop_chat(self):
-        self.stop = True
-        self.is_llm_running = False
+    def check_model_files(self, model_name):
+        path_to_model = os.path.join(self.model_dir, f"{model_name}")
+        model_config = os.path.join(path_to_model, "config.json")
+        model_tokenizer = os.path.join(path_to_model, "tokenizer.json")
+        model_onnx = os.path.join(path_to_model, "onnx", "model_int8.onnx")
+        if not os.path.exists(model_config) or not os.path.exists(model_tokenizer) or not os.path.exists(model_onnx):
+            return False
+        else:
+            return True
 
-    def new_chat(self):
-        self.stop = True
-        self.is_llm_running = False
-        self.chat_history_id.clear_widgets()
-        self.messages = []
-
-    def popup_smol135m_model(self):
+    def popup_download_model(self):
         buttons = [
             MDFlatButton(
                 text="Cancel",
@@ -267,22 +267,23 @@ class OnLlmApp(MDApp):
                 Clock.schedule_once(lambda dt: self.unzip_model(download_path))
             else:
                 Clock.schedule_once(lambda dt: self.show_toast_msg(f"Download failed for: {download_path}", is_error=True))
-            self.is_downloading = False
         except requests.exceptions.RequestException as e:
             print(f"Error downloading the onnx file: {e} 😞")
             Clock.schedule_once(lambda dt: self.show_toast_msg(f"Download failed for: {download_path}", is_error=True))
-            self.is_downloading = False
+        self.is_downloading = False
+        self.to_download_model = "na"
 
     def download_model_file(self, model_url, download_path, instance=None):
         self.txt_dialog_closer(instance)
         filename = download_path.split("/")[-1]
         print(f"Starting the download for: {filename}")
-        self.download_progress = self.root.ids.welcome_scr.ids.download_stat
         Thread(target=self.download_file, args=(model_url, download_path), daemon=True).start()
 
     def download_smol_135m_model(self, instance):
-        url = self.llm_models["smollm2-135m"]['url']
-        model_name = "smollm2-135m"
+        if self.to_download_model == "na":
+            return
+        model_name = self.to_download_model
+        url = self.llm_models[model_name]['url']
         path_to_model = os.path.join(self.model_dir, f"{model_name}.tar.gz")
         self.download_model_file(url, path_to_model, instance)
 
@@ -368,6 +369,16 @@ class OnLlmApp(MDApp):
         self.token_menu.dismiss()
         self.token_count = int(text)
         self.root.ids.chatbot_scr.ids.token_menu.text = text
+
+    def stop_chat(self):
+        self.stop = True
+        self.is_llm_running = False
+
+    def new_chat(self):
+        self.stop = True
+        self.is_llm_running = False
+        self.chat_history_id.clear_widgets()
+        self.messages = []
 
     def add_bot_message(self, msg_to_add, msg_id):
         # Adds the Bot msg into chat history
