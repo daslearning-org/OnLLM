@@ -253,7 +253,7 @@ class OnLlmApp(MDApp):
         except Exception as e:
             print(f"Cannot get the extra models json from GitHub: {e}")
         if flag:
-            self.set_llm_dropdown()
+            Clock.schedule_once(lambda dt: self.set_llm_dropdown())
 
     def popup_download_model(self):
         buttons = [
@@ -316,6 +316,15 @@ class OnLlmApp(MDApp):
     def initiate_model_download(self, instance):
         if self.to_download_model == "na":
             return
+        self.download_progress = MDLabel(
+            text = "Starting download process...",
+            font_style = "Subtitle1",
+            halign = 'left',
+            adaptive_height = True,
+            theme_text_color = "Custom",
+            text_color = "#f7f7f5"
+        )
+        self.chat_history_id.add_widget(self.download_progress)
         model_name = self.to_download_model
         url = self.llm_models[model_name]['url']
         path_to_model = os.path.join(self.model_dir, f"{model_name}.tar.gz")
@@ -399,13 +408,6 @@ class OnLlmApp(MDApp):
         llm_size = self.llm_models[text_item]['size']
         if not check_model:
             self.to_download_model = text_item
-            self.download_progress = MDLabel(
-                text = "Starting download process...",
-                font_style = "Subtitle1",
-                halign = 'left',
-                adaptive_height = True
-            )
-            self.chat_history_id.add_widget(self.download_progress)
             self.model_file_size = f"You need to downlaod the file for the first time (~{llm_size})"
             self.popup_download_model()
             return
