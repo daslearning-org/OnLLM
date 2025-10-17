@@ -223,6 +223,7 @@ class OnLlmApp(MDApp):
             self.popup_download_model()
             return
         self.init_onnx_sess()
+        Thread(target=self.model_sync_on_init, args=("develop",), daemon=True).start()
         self.root.current = "chatbot_screen"
 
     def check_model_files(self, model_name):
