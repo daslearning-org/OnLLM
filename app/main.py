@@ -46,7 +46,7 @@ from screens.welcome import WelcomeScreen
 Window.softinput_mode = "below_target"
 
 ## Global definitions
-__version__ = "0.0.3" # The APP version
+__version__ = "0.1.0" # The APP version
 
 # Determine the base path for your application's resources
 if getattr(sys, 'frozen', False):
@@ -74,6 +74,7 @@ class OnLlmApp(MDApp):
         self.stop = False
         self.decoder_session = None
         self.selected_llm = ""
+        self.to_download_model = "na"
         self.messages = []
 
     def build(self):
@@ -109,19 +110,23 @@ class OnLlmApp(MDApp):
         return Builder.load_file(kv_file_path)
 
     def on_start(self):
-        self.llm_models = [
-            {
+        self.llm_models = {
+            "smollm2-135m": {
                 "name": "smollm2-135m",
-                "url": "https://github.com/daslearning-org/OnLLM/releases/download/vOnnxModels/smollm2-135m.tar.gz"
+                "url": "https://github.com/daslearning-org/OnLLM/releases/download/vOnnxModels/smollm2-135m.tar.gz",
+                "size": "95MB",
+                "platform": "all",
+                "tokens": ["", "<|im_start|>", "<|im_end|>"],
+                "eos_ids": ["<|endoftext|>"]
             }
-        ]
+        }
         if platform == "android":
             # paths on android
             context = autoclass('org.kivy.android.PythonActivity').mActivity
             android_path = context.getExternalFilesDir(None).getAbsolutePath()
             self.model_dir = os.path.join(android_path, 'model_files')
             self.op_dir = os.path.join(android_path, 'outputs')
-            config_dir = os.path.join(android_path, 'config')
+            self.config_dir = os.path.join(android_path, 'config')
             self.internal_storage = android_path
             try:
                 Environment = autoclass("android.os.Environment")
@@ -132,11 +137,17 @@ class OnLlmApp(MDApp):
             self.internal_storage = os.path.expanduser("~")
             self.external_storage = os.path.expanduser("~")
             self.model_dir = os.path.join(self.user_data_dir, 'model_files')
-            config_dir = os.path.join(self.user_data_dir, 'config')
+            self.config_dir = os.path.join(self.user_data_dir, 'config')
             self.op_dir = os.path.join(self.user_data_dir, 'outputs')
         os.makedirs(self.model_dir, exist_ok=True)
         os.makedirs(self.op_dir, exist_ok=True)
-        os.makedirs(config_dir, exist_ok=True)
+        os.makedirs(self.config_dir, exist_ok=True)
+        self.extra_models_config = os.path.join(self.config_dir, 'extra_models.json')
+        if os.path.exists(self.extra_models_config):
+            with open(self.extra_models_config, "r") as modelfile:
+                model_json_obj = json.load(modelfile)
+            for model in model_json_obj:
+                self.llm_models[model] = model_json_obj[model]
         # hamburger menu
         menu_items = [
             {
@@ -153,17 +164,10 @@ class OnLlmApp(MDApp):
         ## the chatbot thing
         self.chat_history_id = self.root.ids.chatbot_scr.ids.chat_history_id
         self.chat_history_id.background_color = self.theme_cls.bg_normal
-        menu_items = []
-        for model in self.llm_models:
-            model_name = model["name"]
-            tmp_menu = {
-                "text": f"{model_name}",
-                "leading_icon": "robot-happy",
-                "on_release": lambda x=f"{model_name}": self.llm_menu_callback(x),
-                "font_size": sp(24)
-            }
-            menu_items.append(tmp_menu)
-        token_sizes = [128, 256, 512, 1024]
+        # llm models drop-down
+        self.set_llm_dropdown(stage="init")
+        # token drop-down
+        token_sizes = [128, 256, 512, 1024, 2048]
         token_drop_items = [
             {
                 "text": f"{tkn_size}",
@@ -171,22 +175,6 @@ class OnLlmApp(MDApp):
                 "font_size": sp(24)
             } for tkn_size in token_sizes
         ]
-        # model menu
-        self.llm_menu = MDDropdownMenu(
-            md_bg_color="#bdc6b0",
-            caller=self.root.ids.chatbot_scr.ids.llm_menu,
-            items=[],
-        )
-        if len(self.llm_models) >= 1:
-            self.selected_llm = menu_items[0]["text"]
-            self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
-            self.llm_menu.items = menu_items
-        else:
-            # pop up to be added in case of none & disable input
-            print("No LLM found!")
-            self.llm_menu.items = []
-            self.selected_llm = "None"
-            self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
         # token size menu
         self.token_menu = MDDropdownMenu(
             md_bg_color="#bdc6b0",
@@ -196,32 +184,81 @@ class OnLlmApp(MDApp):
         self.root.ids.chatbot_scr.ids.token_menu.text = str(token_sizes[0])
         print("Initialisation is successful")
 
+    def set_llm_dropdown(self, stage="post-init"):
+        menu_items = []
+        # llm model drop-down items
+        for model in self.llm_models:
+            model_name = model
+            tmp_menu = {
+                "text": f"{model_name}",
+                "leading_icon": "robot-happy",
+                "on_release": lambda x=f"{model_name}": self.llm_menu_callback(x),
+                "font_size": sp(24)
+            }
+            menu_items.append(tmp_menu)
+        # model menu
+        self.llm_menu = MDDropdownMenu(
+            md_bg_color="#bdc6b0",
+            caller=self.root.ids.chatbot_scr.ids.llm_menu,
+            items=[],
+        )
+        if stage == "init":
+            if len(self.llm_models) >= 1:
+                self.selected_llm = menu_items[0]["text"]
+                self.llm_menu.items = menu_items
+            else:
+                # pop up to be added in case of none & disable input
+                print("No LLM found!")
+                self.llm_menu.items = []
+                self.selected_llm = "None"
+        self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
+
     def start_from_welcome(self):
-        model_name = self.llm_models[0]['name']
+        model_name = "smollm2-135m"
+        if self.is_downloading == model_name:
+            self.show_toast_msg("Please wait for the downlaod to complete!", is_error=True)
+            return
+        check_model = self.check_model_files(model_name)
+        if not check_model:
+            self.to_download_model = model_name
+            self.download_progress = self.root.ids.welcome_scr.ids.download_stat
+            self.model_file_size = "You need to downlaod the file for the first time (~95MB)"
+            self.popup_download_model()
+            return
+        self.init_onnx_sess()
+        Thread(target=self.model_sync_on_init, args=("develop",), daemon=True).start()
+        self.root.current = "chatbot_screen"
+
+    def check_model_files(self, model_name):
         path_to_model = os.path.join(self.model_dir, f"{model_name}")
         model_config = os.path.join(path_to_model, "config.json")
         model_tokenizer = os.path.join(path_to_model, "tokenizer.json")
         model_onnx = os.path.join(path_to_model, "onnx", "model_int8.onnx")
-        if self.is_downloading:
-            self.show_toast_msg("Please wait for the downlaod to complete!", is_error=True)
-            return
         if not os.path.exists(model_config) or not os.path.exists(model_tokenizer) or not os.path.exists(model_onnx):
-            self.popup_smol135m_model()
-            return
-        self.init_onnx_sess()
-        self.root.current = "chatbot_screen"
+            return False
+        else:
+            return True
 
-    def stop_chat(self):
-        self.stop = True
-        self.is_llm_running = False
+    def model_sync_on_init(self, branch="develop"):
+        url = f"https://raw.githubusercontent.com/daslearning-org/OnLLM/{branch}/app/extra_models.json"
+        filename = url.split("/")[-1]
+        flag = False
+        try:
+            import urllib.request
+            urllib.request.urlretrieve(url, self.extra_models_config)
+            if os.path.exists(self.extra_models_config):
+                with open(self.extra_models_config, "r") as modelfile:
+                    model_json_obj = json.load(modelfile)
+                for model in model_json_obj:
+                    if (not model in self.llm_models) and (model_json_obj[model]['platform'] == "all" or model_json_obj[model]['platform'] == platform):
+                        self.llm_models[model] = model_json_obj[model]
+                        flag = True
+        except Exception as e:
+            print(f"Cannot get the extra models json from GitHub: {e}")
+        if flag:
+            Clock.schedule_once(lambda dt: self.set_llm_dropdown())
 
-    def new_chat(self):
-        self.stop = True
-        self.is_llm_running = False
-        self.chat_history_id.clear_widgets()
-        self.messages = []
-
-    def popup_smol135m_model(self):
+    def popup_download_model(self):
         buttons = [
             MDFlatButton(
                 text="Cancel",
@@ -233,12 +270,12 @@ class OnLlmApp(MDApp):
                 text="Ok",
                 theme_text_color="Custom",
                 text_color="green",
-                on_release=self.download_smol_135m_model
+                on_release=self.initiate_model_download
             ),
         ]
         self.show_text_dialog(
             "Downlaod the model file",
-            f"You need to downlaod the file for the first time (~95MB)",
+            self.model_file_size,
             buttons
         )
 
@@ -251,6 +288,7 @@ class OnLlmApp(MDApp):
 
     def download_file(self, download_url, download_path):
         filename = download_url.split("/")[-1]
+        filename = filename.replace("?download=true", "")
         try:
             self.is_downloading = filename
             with requests.get(download_url, stream=True) as req:
@@ -267,22 +305,32 @@ class OnLlmApp(MDApp):
                 Clock.schedule_once(lambda dt: self.unzip_model(download_path))
             else:
                 Clock.schedule_once(lambda dt: self.show_toast_msg(f"Download failed for: {download_path}", is_error=True))
-            self.is_downloading = False
         except requests.exceptions.RequestException as e:
             print(f"Error downloading the onnx file: {e} 😞")
             Clock.schedule_once(lambda dt: self.show_toast_msg(f"Download failed for: {download_path}", is_error=True))
-            self.is_downloading = False
+        self.is_downloading = False
+        self.to_download_model = "na"
 
     def download_model_file(self, model_url, download_path, instance=None):
         self.txt_dialog_closer(instance)
         filename = download_path.split("/")[-1]
         print(f"Starting the download for: {filename}")
-        self.download_progress = self.root.ids.welcome_scr.ids.download_stat
         Thread(target=self.download_file, args=(model_url, download_path), daemon=True).start()
 
-    def download_smol_135m_model(self, instance):
-        url = self.llm_models[0]['url']
-        model_name = self.llm_models[0]['name']
+    def initiate_model_download(self, instance):
+        if self.to_download_model == "na":
+            return
+        self.download_progress = MDLabel(
+            text = "Starting download process...",
+            font_style = "Subtitle1",
+            halign = 'left',
+            adaptive_height = True,
+            theme_text_color = "Custom",
+            text_color = "#f7f7f5"
+        )
+        self.chat_history_id.add_widget(self.download_progress)
+        model_name = self.to_download_model
+        url = self.llm_models[model_name]['url']
         path_to_model = os.path.join(self.model_dir, f"{model_name}.tar.gz")
         self.download_model_file(url, path_to_model, instance)
 
@@ -360,6 +408,16 @@ class OnLlmApp(MDApp):
 
     def llm_menu_callback(self, text_item):
         self.llm_menu.dismiss()
+        check_model = self.check_model_files(text_item)
+        llm_size = self.llm_models[text_item]['size']
+        if not check_model:
+            if self.is_downloading:
+                self.show_toast_msg("Please wait for the current download to finish", is_error=True, duration=2)
+                return
+            self.to_download_model = text_item
+            self.model_file_size = f"You need to downlaod the file for the first time (~{llm_size})"
+            self.popup_download_model()
+            return
         self.selected_llm = text_item
         self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
         self.init_onnx_sess(self.selected_llm)
@@ -368,6 +426,16 @@ class OnLlmApp(MDApp):
         self.token_menu.dismiss()
         self.token_count = int(text)
         self.root.ids.chatbot_scr.ids.token_menu.text = text
+
+    def stop_chat(self):
+        self.stop = True
+        self.is_llm_running = False
+
+    def new_chat(self):
+        self.stop = True
+        self.is_llm_running = False
+        self.chat_history_id.clear_widgets()
+        self.messages = []
 
     def add_bot_message(self, msg_to_add, msg_id):
         # Adds the Bot msg into chat history
@@ -426,19 +494,22 @@ class OnLlmApp(MDApp):
             self.show_toast_msg("Please type a message!", is_error=True)
 
     def apply_chat_template(self, messages, add_generation_prompt=False, tokenize=True, return_tensors="np"):
-        prompt = ""  # no initials
+        init_prompt = self.llm_models[self.selected_llm]['tokens'][0]
+        start_prompt = self.llm_models[self.selected_llm]['tokens'][1]
+        end_prompt = self.llm_models[self.selected_llm]['tokens'][2]
+        prompt = init_prompt
         for msg in messages:
             role = msg["role"]
             content = msg["content"].strip()  # Strip for cleanliness
             if role == "system":
-                prompt += f"<|im_start|>system\n{content}<|im_end|>\n"
+                prompt += f"{start_prompt}system\n{content}{end_prompt}\n"
             elif role == "user":
-                prompt += f"<|im_start|>user\n{content}<|im_end|>\n"
+                prompt += f"{start_prompt}user\n{content}{end_prompt}\n"
             elif role == "assistant" or role == "model":
-                prompt += f"<|im_start|>assistant\n{content}<|im_end|>\n"
+                prompt += f"{start_prompt}assistant\n{content}{end_prompt}\n"
 
         if add_generation_prompt:
-            prompt += "<|im_start|>assistant\n"
+            prompt += f"{start_prompt}assistant\n"
 
         if not tokenize:
             return prompt
@@ -482,7 +553,14 @@ class OnLlmApp(MDApp):
             self.num_key_value_heads = config_data["num_key_value_heads"]
             self.head_dim = config_data["head_dim"]
             self.num_hidden_layers = config_data["num_hidden_layers"]
-            self.eos_token_id = self.tokenizer.token_to_id("<|im_end|>")
+            primary_eos = self.llm_models[self.selected_llm]["tokens"][2]
+            other_eos = self.llm_models[self.selected_llm]["eos_ids"]
+            self.eos_token_ids = [
+                self.tokenizer.token_to_id(primary_eos),
+            ]
+            for eos in other_eos:
+                eos_item = self.tokenizer.token_to_id(str(eos))
+                self.eos_token_ids.append(eos_item)
 
             if platform == "android" or arm_android:
                 self.decoder_session = InferenceSession(f"{path_to_model}/onnx/model_int8.onnx", providers=android_providers)
@@ -554,7 +632,7 @@ class OnLlmApp(MDApp):
                     past_key_values[key] = present_key_values[j]
 
                 #generated_tokens = np.concatenate([generated_tokens, input_ids], axis=-1)
-                if (input_ids == self.eos_token_id).all() or self.stop:
+                if np.isin(input_ids, self.eos_token_ids).any() or self.stop:
                     break
 
                 ## (Optional) Streaming (use tokenizer.decode)
