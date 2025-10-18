@@ -106,3 +106,12 @@ pip install pyinstaller
 # then build your app which will be native to the OS i.e. Linux or Windows or MAC
 pyinstaller desktopApp.spec
 ```
+
+## 🔗 LLM Models used in this project
+The models are being taken from different sources & below are the models available as on today. Size is the compressed size (approax).
+
+| Model | Size | Android | Desktop |
+| :---- | :--- | :-----: | :-----: |
+| [SmolLM2-135M](https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct) | 95MB | ✅️ | ✅️ |
+| [SmolLM2-360M](https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct) | 241MB | ✅️ | ✅️ |
+| [Gemma3-1B](https://huggingface.co/onnx-community/gemma-3-1b-it-ONNX) | 645MB | ❌ | ✅️ |

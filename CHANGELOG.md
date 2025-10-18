@@ -1,5 +1,9 @@
 ## Changes
 
+### 0.1.1
+- Making the model sync more dynamic for supporting more models with different tokenization.
+- Adding `Gemma3-1B` model for desktop platforms.
+
 ### 0.1.0
 - Adding `SmolLM2-360M` model which can produce better answers.
 - From this version onwards, the app can list the supported models using sync method.

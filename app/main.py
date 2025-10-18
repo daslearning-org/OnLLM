@@ -46,7 +46,7 @@ from screens.welcome import WelcomeScreen
 Window.softinput_mode = "below_target"
 
 ## Global definitions
-__version__ = "0.1.0" # The APP version
+__version__ = "0.1.1" # The APP version
 
 # Determine the base path for your application's resources
 if getattr(sys, 'frozen', False):
@@ -117,7 +117,8 @@ class OnLlmApp(MDApp):
                 "size": "95MB",
                 "platform": "android", # means runs on all
                 "tokens": ["", "<|im_start|>", "<|im_end|>"],
-                "eos_ids": ["<|endoftext|>"]
+                "eos_ids": ["<|endoftext|>"],
+                "att_mask": True
             }
         }
         if platform == "android":
@@ -235,6 +236,7 @@ class OnLlmApp(MDApp):
 
     def model_sync_on_init(self, branch="develop"):
         url = f"https://raw.githubusercontent.com/daslearning-org/OnLLM/{branch}/app/extra_models.json"
+        url += f"?_t={int(time.time())}"  # prevents CDN caching
         filename = url.split("/")[-1]
         flag = False
         try:
@@ -613,22 +615,32 @@ class OnLlmApp(MDApp):
                 for layer in range(self.num_hidden_layers)
                 for kv in ('key', 'value')
             }
-            attention_mask = np.ones_like(input_ids, dtype=np.int64)
+            use_att_mask = self.llm_models[self.selected_llm].get("att_mask", False)
+            if use_att_mask:
+                attention_mask = np.ones_like(input_ids, dtype=np.int64)
             position_ids = np.tile(np.arange(0, input_ids.shape[-1]), (batch_size, 1))
             max_new_tokens = int(self.token_count)
             #generated_tokens = input_ids
             for i in range(max_new_tokens):
-                logits, *present_key_values = self.decoder_session.run(None, dict(
-                    input_ids=input_ids,
-                    attention_mask=attention_mask,
-                    position_ids=position_ids,
-                    **past_key_values,
-                ))
+                if use_att_mask:
+                    logits, *present_key_values = self.decoder_session.run(None, dict(
+                        input_ids=input_ids,
+                        attention_mask=attention_mask,
+                        position_ids=position_ids,
+                        **past_key_values,
+                    ))
+                else:
+                    logits, *present_key_values = self.decoder_session.run(None, dict(
+                        input_ids=input_ids,
+                        position_ids=position_ids,
+                        **past_key_values,
+                    ))
 
                 ## Update values for next generation loop
                 #input_ids = np.argmax(logits[:, -1], axis=-1, keepdims=True)
                 input_ids = self.sample_logits(logits[:, -1, :], temperature=0.7, top_p=0.9)
-                attention_mask = np.concatenate([attention_mask, np.ones_like(input_ids, dtype=np.int64)], axis=-1)
+                if use_att_mask:
+                    attention_mask = np.concatenate([attention_mask, np.ones_like(input_ids, dtype=np.int64)], axis=-1)
                 position_ids = position_ids[:, -1:] + 1
                 for j, key in enumerate(past_key_values):
                     past_key_values[key] = present_key_values[j]
