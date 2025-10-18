@@ -21,8 +21,8 @@
         "url": "https://huggingface.co/daslearning/Gemma3-Onnx/resolve/main/onnx/gemma3-270m.tar.gz?download=true",
         "size": "245MB",
         "platform": "desktop",
-        "tokens": ["<bos>", "<start_of_turn>", "<end_of_turn>"],
-        "eos_ids": [],
+        "tokens": ["", "<|im_start|>", "<|im_end|>"],
+        "eos_ids": ["<|endoftext|>"],
         "att_mask": true
     }
 }

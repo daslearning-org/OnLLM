@@ -236,6 +236,7 @@ class OnLlmApp(MDApp):
 
     def model_sync_on_init(self, branch="develop"):
         url = f"https://raw.githubusercontent.com/daslearning-org/OnLLM/{branch}/app/extra_models.json"
+        url += f"?_t={int(time.time())}"  # prevents CDN caching
         filename = url.split("/")[-1]
         flag = False
         try:
