@@ -46,7 +46,7 @@ from screens.welcome import WelcomeScreen
 Window.softinput_mode = "below_target"
 
 ## Global definitions
-__version__ = "0.1.0" # The APP version
+__version__ = "0.1.1" # The APP version
 
 # Determine the base path for your application's resources
 if getattr(sys, 'frozen', False):
@@ -221,7 +221,7 @@ class OnLlmApp(MDApp):
             self.popup_download_model()
             return
         self.init_onnx_sess()
-        Thread(target=self.model_sync_on_init, args=("develop",), daemon=True).start()
+        Thread(target=self.model_sync_on_init, args=("main",), daemon=True).start()
         self.root.current = "chatbot_screen"
 
     def check_model_files(self, model_name):
