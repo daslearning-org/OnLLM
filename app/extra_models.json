@@ -22,6 +22,7 @@
         "size": "245MB",
         "platform": "desktop",
         "tokens": ["<bos>", "<start_of_turn>", "<end_of_turn>"],
-        "eos_ids": []
+        "eos_ids": [],
+        "att_mask": true
     }
 }
