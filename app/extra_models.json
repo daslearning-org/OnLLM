@@ -5,6 +5,15 @@
         "size": "241MB",
         "platform": "android",
         "tokens": ["", "<|im_start|>", "<|im_end|>"],
-        "eos_ids": ["<|endoftext|>"]
+        "eos_ids": ["<|endoftext|>"],
+        "att_mask": true
+    },
+    "gemma3-1B": {
+        "name": "gemma3-1B",
+        "url": "https://huggingface.co/daslearning/Gemma3-Onnx/resolve/main/onnx/gemma3-1B.tar.gz?download=true",
+        "size": "1GB",
+        "platform": "desktop",
+        "tokens": ["<bos>", "<start_of_turn>", "<end_of_turn>"],
+        "eos_ids": []
     }
 }
