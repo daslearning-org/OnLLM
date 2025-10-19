@@ -41,6 +41,7 @@ from m2r2 import convert
 from screens.myrst import MyRstDocument
 from screens.chatbot_screen import TempSpinWait, ChatbotScreen, BotResp, BotTmpResp, UsrResp
 from screens.welcome import WelcomeScreen
+from screens.setting import DeleteModelItems, SettingsBox
 
 # IMPORTANT: Set this property for keyboard behavior
 Window.softinput_mode = "below_target"
@@ -81,6 +82,11 @@ class OnLlmApp(MDApp):
         self.theme_cls.primary_palette = "Blue"
         self.theme_cls.accent_palette = "Orange"
         self.top_menu_items = {
+            "Settings": {
+                "icon": "wrench",
+                "action": "settings",
+                "url": "",
+            },
             "Demo": {
                 "icon": "youtube",
                 "action": "web",
@@ -366,7 +372,21 @@ class OnLlmApp(MDApp):
         self.txt_dialog.open()
 
     def txt_dialog_closer(self, instance):
-        self.txt_dialog.dismiss()
+        if self.txt_dialog:
+            self.txt_dialog.dismiss()
+
+    def show_custom_dialog(self, title, content_cls, buttons=[]):
+        self.cst_dialog = MDDialog(
+            title=title,
+            type="custom",
+            content_cls=content_cls,
+            buttons=buttons
+        )
+        self.txt_dialog.open()
+
+    def custom_dialog_closer(self, instance):
+        if self.cst_dialog:
+            self.cst_dialog.dismiss()
 
     def menu_bar_callback(self, button):
         self.top_menu.caller = button
@@ -403,6 +423,8 @@ class OnLlmApp(MDApp):
                 f"Your version: {__version__}",
                 buttons
             )
+        elif action == "settings":
+            self.root.current = "settings_screen"
 
     def llm_menu_callback(self, text_item):
         self.llm_menu.dismiss()
@@ -660,6 +682,39 @@ class OnLlmApp(MDApp):
             final_result["role"] = "error"
         if not self.stop:
             Clock.schedule_once(lambda dt: self.final_llm_result(final_result))
+
+    def popup_delete_model(self, model=""):
+        buttons = [
+            MDFlatButton(
+                text="Cancel",
+                theme_text_color="Custom",
+                text_color=self.theme_cls.primary_color,
+                on_release=self.txt_dialog_closer
+            ),
+            MDFlatButton(
+                text="Ok",
+                theme_text_color="Custom",
+                text_color="red",
+                on_release=self.initiate_model_download
+            ),
+        ]
+        self.show_text_dialog(
+            "Delete the model files",
+            f"{model} will be deleted & action cannot be undone!",
+            buttons
+        )
+
+    def init_delete_model(self, model):
+        """ Call back from delete icon """
+        print(model)
+
+    def settings_initiate(self):
+        set_scroll = self.root.ids.settings_scr.ids.delete_model_list
+        model_folders = os.listdir(self.model_dir)
+        for model in model_folders:
+            tmp_list_item = DeleteModelItems()
+            tmp_list_item.text = model
+            set_scroll.add_widget(tmp_list_item)
 
     def update_text_stream(self, txt_update):
         if self.tmp_txt:
