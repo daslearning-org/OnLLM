@@ -46,7 +46,7 @@ from screens.welcome import WelcomeScreen
 Window.softinput_mode = "below_target"
 
 ## Global definitions
-__version__ = "0.1.1" # The APP version
+__version__ = "0.1.2" # The APP version
 
 # Determine the base path for your application's resources
 if getattr(sys, 'frozen', False):
@@ -204,23 +204,12 @@ class OnLlmApp(MDApp):
             items=[],
         )
         self.llm_menu.items = menu_items
-        if stage == "init":
-            self.selected_llm = menu_items[0]["text"]
-        self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
+        if stage == "init" or self.selected_llm == "":
+            self.root.ids.chatbot_scr.ids.llm_menu.text = "Select model"
+        else:
+            self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
 
     def start_from_welcome(self):
-        model_name = "smollm2-135m"
-        if self.is_downloading == model_name:
-            self.show_toast_msg("Please wait for the downlaod to complete!", is_error=True)
-            return
-        check_model = self.check_model_files(model_name)
-        if not check_model:
-            self.to_download_model = model_name
-            self.download_progress = self.root.ids.welcome_scr.ids.download_stat
-            self.model_file_size = "You need to downlaod the file for the first time (~95MB)"
-            self.popup_download_model()
-            return
-        self.init_onnx_sess()
         Thread(target=self.model_sync_on_init, args=("main",), daemon=True).start()
         self.root.current = "chatbot_screen"
 
@@ -473,6 +462,9 @@ class OnLlmApp(MDApp):
         self.chat_history_id.add_widget(usr_msg_label)
 
     def send_message(self, button_instance, chat_input_widget):
+        if self.selected_llm == "":
+            self.show_toast_msg("Please select a model first!", is_error=True)
+            return
         if self.is_llm_running:
             self.show_toast_msg("Please wait for the current response", is_error=True)
             return
