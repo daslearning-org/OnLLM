@@ -22,6 +22,7 @@ Builder.load_string('''
         text_color: "gray"
 
 <SettingsBox@MDBoxLayout>:
+    orientation: 'vertical'
 
     Accordion:
         orientation: 'vertical'
@@ -48,6 +49,20 @@ Builder.load_string('''
                     #        on_release: app.img_preview_on()
                     #        theme_text_color: "Custom"
                     #        text_color: "gray"
+
+    MDBoxLayout: # Input box with Send button
+        size_hint_y: 0.1
+        orientation: 'horizontal'
+        spacing: dp(5)
+        padding: 8, 4, 8, 8 # left, top, right, bottom
+        adaptive_height: True
+        MDFillRoundFlatIconButton:
+            id: setting_to_chat
+            icon: "chat"
+            text: "Go Back"
+            size_hint_x: 0.2
+            font_size: sp(16)
+            on_release: app.go_to_chat_screen()
 
 ''')
 

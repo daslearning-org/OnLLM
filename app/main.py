@@ -371,7 +371,7 @@ class OnLlmApp(MDApp):
         )
         self.txt_dialog.open()
 
-    def txt_dialog_closer(self, instance):
+    def txt_dialog_closer(self, instance=None):
         if self.txt_dialog:
             self.txt_dialog.dismiss()
 
@@ -689,13 +689,13 @@ class OnLlmApp(MDApp):
                 text="Cancel",
                 theme_text_color="Custom",
                 text_color=self.theme_cls.primary_color,
-                on_release=self.txt_dialog_closer
+                on_release=self.cancel_delete_model
             ),
             MDFlatButton(
                 text="Ok",
                 theme_text_color="Custom",
                 text_color="red",
-                on_release=self.initiate_model_download
+                on_release=self.delete_model_confirm
             ),
         ]
         self.show_text_dialog(
@@ -704,17 +704,38 @@ class OnLlmApp(MDApp):
             buttons
         )
 
+    def delete_model_confirm(self, instance):
+        if self.to_delete_model:
+            delete_path = os.path.join(self.model_dir, self.to_delete_model)
+            try:
+                import shutil
+                shutil.rmtree(delete_path)
+                self.show_toast_msg(f"Deleted model files of {self.to_delete_model}")
+            except Exception as e:
+                self.show_toast_msg(f"Could not delete due to: {e}", is_error=True)
+        self.to_delete_model = False
+        self.txt_dialog_closer()
+
     def init_delete_model(self, model):
         """ Call back from delete icon """
-        print(model)
+        self.to_delete_model = model
+        self.popup_delete_model(model)
+
+    def cancel_delete_model(self, instance):
+        self.txt_dialog_closer()
+        self.to_delete_model = False
 
     def settings_initiate(self):
         set_scroll = self.root.ids.settings_scr.ids.delete_model_list
+        set_scroll.clear_widgets()
         model_folders = os.listdir(self.model_dir)
         for model in model_folders:
             tmp_list_item = DeleteModelItems()
             tmp_list_item.text = model
             set_scroll.add_widget(tmp_list_item)
+
+    def go_to_chat_screen(self):
+        self.root.current = "chatbot_screen"
 
     def update_text_stream(self, txt_update):
         if self.tmp_txt:
