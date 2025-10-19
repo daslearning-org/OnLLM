@@ -143,12 +143,17 @@ class OnLlmApp(MDApp):
         os.makedirs(self.model_dir, exist_ok=True)
         os.makedirs(self.op_dir, exist_ok=True)
         os.makedirs(self.config_dir, exist_ok=True)
+        # update models from local model config
         self.extra_models_config = os.path.join(self.config_dir, 'extra_models.json')
         if os.path.exists(self.extra_models_config):
             with open(self.extra_models_config, "r") as modelfile:
                 model_json_obj = json.load(modelfile)
             for model in model_json_obj:
-                self.llm_models[model] = model_json_obj[model]
+                if platform == "android":
+                    if model_json_obj[model]['platform'] in ("android", "warn"):
+                        self.llm_models[model] = model_json_obj[model]
+                else:
+                    self.llm_models[model] = model_json_obj[model]
         # hamburger menu
         menu_items = [
             {
