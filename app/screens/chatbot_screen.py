@@ -232,25 +232,31 @@ Builder.load_string('''
             spacing: dp(5)
             padding: 8, 4, 8, 8 # left, top, right, bottom
             adaptive_height: True
+            canvas.before:
+                Color:
+                    rgb: parse_color('#262625')
+                Rectangle:
+                    size: self.width, self.height
+                    pos: self.pos
 
             MDTextField:
                 id: chat_input
                 font_name: root.noto_path
-                hint_text: "Ask anyhthing..."
-                mode: "rectangle"
+                hint_text: "Ask anyhthing"
+                mode: "fill" #"rectangle"
                 multiline: True
                 max_height: "200dp"
                 size_hint_x: 0.8
                 input_type: 'text'
                 keyboard_suggestions: True
                 font_size: sp(16)
-            MDFillRoundFlatIconButton:
-                id: send_msg_button
+
+            MDIconButton:
                 icon: "send"
-                text: "Go"
-                size_hint_x: 0.2
-                size_hint_y: 0.8
-                font_size: sp(16)
+                icon_size: sp(32)
+                pos_hint: {'center_y': 0.5}
+                theme_icon_color: "Custom"
+                icon_color: app.theme_cls.primary_color
                 on_release: app.send_message(self, chat_input)
 
 ''')

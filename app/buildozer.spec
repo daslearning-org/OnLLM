@@ -1,7 +1,7 @@
 [app]
 
 # (str) Title of your application
-title = OnLLM - Local AI Chatbot
+title = OnLLM - Offline AI Chatbot
 
 # (str) Package name
 package.name = onllm
@@ -41,7 +41,7 @@ version.filename = %(source.dir)s/main.py
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3, kivy==2.3.1, kivymd==1.2.0, certifi, idna, charset_normalizer, urllib3, pyjnius, android, m2r2, docutils, mistune==0.8.4, filetype, pygments, pillow, requests, coloredlogs, flatbuffers, packaging, numpy, mpmath, protobuf, sympy, onnxruntime, tokenizers
+requirements = python3, kivy==2.3.1, kivymd==1.2.0, certifi, idna, charset_normalizer, urllib3, pyjnius, android, m2r2, docutils, mistune==0.8.4, filetype, pygments, pillow, requests, coloredlogs, flatbuffers, packaging, numpy1, mpmath, protobuf, sympy, onnxruntime_np1, tokenizers
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -115,7 +115,8 @@ android.minapi = 28
 #android.sdk = 20
 
 # (str) Android NDK version to use
-android.ndk = 25b
+android.ndk = 28c
+#25b
 
 # (int) Android NDK API to use. This is the minimum API your app will support, it should usually match android.minapi.
 #android.ndk_api = 21
@@ -310,7 +311,7 @@ android.allow_backup = True
 # android.no-byte-compile-python = False
 
 # (str) The format used to package the app for release mode (aab or apk or aar).
-# android.release_artifact = aab
+android.release_artifact = aab
 
 # (str) The format used to package the app for debug mode (apk or aar).
 # android.debug_artifact = apk
@@ -326,7 +327,8 @@ p4a.url = https://github.com/daslearning-org/p4a-unofficial.git
 #p4a.fork = kivy
 
 # (str) python-for-android branch to use, defaults to master
-p4a.branch = v0.0.3
+p4a.branch = numpy2
+#v0.0.3
 
 # (str) python-for-android specific commit to use, defaults to HEAD, must be within p4a.branch
 #p4a.commit = HEAD

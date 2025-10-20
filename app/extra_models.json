@@ -12,7 +12,7 @@
         "name": "gemma3-1B",
         "url": "https://huggingface.co/daslearning/Gemma3-Onnx/resolve/main/onnx/gemma3-1B.tar.gz?download=true",
         "size": "645MB",
-        "platform": "desktop",
+        "platform": "warn",
         "tokens": ["<bos>", "<start_of_turn>", "<end_of_turn>"],
         "eos_ids": []
     }

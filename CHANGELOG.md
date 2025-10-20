@@ -1,5 +1,10 @@
 ## Changes
 
+### 0.1.2
+- Will not force users to download `smollm2-135m` from welcome screen anymore.
+- Fixing `desktop` models addition in `Android`.
+- Adding model delete option in Settings.
+
 ### 0.1.1
 - Making the model sync more dynamic for supporting more models with different tokenization.
 - Adding `Gemma3-1B` model for desktop platforms.

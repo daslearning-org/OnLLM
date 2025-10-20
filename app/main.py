@@ -41,12 +41,13 @@ from m2r2 import convert
 from screens.myrst import MyRstDocument
 from screens.chatbot_screen import TempSpinWait, ChatbotScreen, BotResp, BotTmpResp, UsrResp
 from screens.welcome import WelcomeScreen
+from screens.setting import DeleteModelItems, SettingsBox
 
 # IMPORTANT: Set this property for keyboard behavior
 Window.softinput_mode = "below_target"
 
 ## Global definitions
-__version__ = "0.1.1" # The APP version
+__version__ = "0.1.2" # The APP version
 
 # Determine the base path for your application's resources
 if getattr(sys, 'frozen', False):
@@ -81,6 +82,11 @@ class OnLlmApp(MDApp):
         self.theme_cls.primary_palette = "Blue"
         self.theme_cls.accent_palette = "Orange"
         self.top_menu_items = {
+            "Settings": {
+                "icon": "wrench",
+                "action": "settings",
+                "url": "",
+            },
             "Demo": {
                 "icon": "youtube",
                 "action": "web",
@@ -143,12 +149,17 @@ class OnLlmApp(MDApp):
         os.makedirs(self.model_dir, exist_ok=True)
         os.makedirs(self.op_dir, exist_ok=True)
         os.makedirs(self.config_dir, exist_ok=True)
+        # update models from local model config
         self.extra_models_config = os.path.join(self.config_dir, 'extra_models.json')
         if os.path.exists(self.extra_models_config):
             with open(self.extra_models_config, "r") as modelfile:
                 model_json_obj = json.load(modelfile)
             for model in model_json_obj:
-                self.llm_models[model] = model_json_obj[model]
+                if platform == "android":
+                    if model_json_obj[model]['platform'] in ("android", "warn"):
+                        self.llm_models[model] = model_json_obj[model]
+                else:
+                    self.llm_models[model] = model_json_obj[model]
         # hamburger menu
         menu_items = [
             {
@@ -204,23 +215,12 @@ class OnLlmApp(MDApp):
             items=[],
         )
         self.llm_menu.items = menu_items
-        if stage == "init":
-            self.selected_llm = menu_items[0]["text"]
-        self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
+        if stage == "init" or self.selected_llm == "":
+            self.root.ids.chatbot_scr.ids.llm_menu.text = "Select model"
+        else:
+            self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
 
     def start_from_welcome(self):
-        model_name = "smollm2-135m"
-        if self.is_downloading == model_name:
-            self.show_toast_msg("Please wait for the downlaod to complete!", is_error=True)
-            return
-        check_model = self.check_model_files(model_name)
-        if not check_model:
-            self.to_download_model = model_name
-            self.download_progress = self.root.ids.welcome_scr.ids.download_stat
-            self.model_file_size = "You need to downlaod the file for the first time (~95MB)"
-            self.popup_download_model()
-            return
-        self.init_onnx_sess()
         Thread(target=self.model_sync_on_init, args=("main",), daemon=True).start()
         self.root.current = "chatbot_screen"
 
@@ -371,8 +371,22 @@ class OnLlmApp(MDApp):
         )
         self.txt_dialog.open()
 
-    def txt_dialog_closer(self, instance):
-        self.txt_dialog.dismiss()
+    def txt_dialog_closer(self, instance=None):
+        if self.txt_dialog:
+            self.txt_dialog.dismiss()
+
+    def show_custom_dialog(self, title, content_cls, buttons=[]):
+        self.cst_dialog = MDDialog(
+            title=title,
+            type="custom",
+            content_cls=content_cls,
+            buttons=buttons
+        )
+        self.txt_dialog.open()
+
+    def custom_dialog_closer(self, instance):
+        if self.cst_dialog:
+            self.cst_dialog.dismiss()
 
     def menu_bar_callback(self, button):
         self.top_menu.caller = button
@@ -409,6 +423,8 @@ class OnLlmApp(MDApp):
                 f"Your version: {__version__}",
                 buttons
             )
+        elif action == "settings":
+            self.root.current = "settings_screen"
 
     def llm_menu_callback(self, text_item):
         self.llm_menu.dismiss()
@@ -473,6 +489,9 @@ class OnLlmApp(MDApp):
         self.chat_history_id.add_widget(usr_msg_label)
 
     def send_message(self, button_instance, chat_input_widget):
+        if self.selected_llm == "":
+            self.show_toast_msg("Please select a model first!", is_error=True)
+            return
         if self.is_llm_running:
             self.show_toast_msg("Please wait for the current response", is_error=True)
             return
@@ -663,6 +682,60 @@ class OnLlmApp(MDApp):
             final_result["role"] = "error"
         if not self.stop:
             Clock.schedule_once(lambda dt: self.final_llm_result(final_result))
+
+    def popup_delete_model(self, model=""):
+        buttons = [
+            MDFlatButton(
+                text="Cancel",
+                theme_text_color="Custom",
+                text_color=self.theme_cls.primary_color,
+                on_release=self.cancel_delete_model
+            ),
+            MDFlatButton(
+                text="Delete",
+                theme_text_color="Custom",
+                text_color="red",
+                on_release=self.delete_model_confirm
+            ),
+        ]
+        self.show_text_dialog(
+            "Delete the model?",
+            f"{model} will be deleted & action cannot be undone!",
+            buttons
+        )
+
+    def delete_model_confirm(self, instance):
+        if self.to_delete_model:
+            delete_path = os.path.join(self.model_dir, self.to_delete_model)
+            try:
+                import shutil
+                shutil.rmtree(delete_path)
+                self.show_toast_msg(f"Deleted all files of {self.to_delete_model}")
+            except Exception as e:
+                self.show_toast_msg(f"Could not delete due to: {e}", is_error=True)
+        self.to_delete_model = False
+        self.txt_dialog_closer()
+
+    def init_delete_model(self, model):
+        """ Call back from delete icon """
+        self.to_delete_model = model
+        self.popup_delete_model(model)
+
+    def cancel_delete_model(self, instance):
+        self.txt_dialog_closer()
+        self.to_delete_model = False
+
+    def settings_initiate(self):
+        set_scroll = self.root.ids.settings_scr.ids.delete_model_list
+        set_scroll.clear_widgets()
+        model_folders = os.listdir(self.model_dir)
+        for model in model_folders:
+            tmp_list_item = DeleteModelItems()
+            tmp_list_item.text = model
+            set_scroll.add_widget(tmp_list_item)
+
+    def go_to_chat_screen(self):
+        self.root.current = "chatbot_screen"
 
     def update_text_stream(self, txt_update):
         if self.tmp_txt:
