@@ -692,14 +692,14 @@ class OnLlmApp(MDApp):
                 on_release=self.cancel_delete_model
             ),
             MDFlatButton(
-                text="Ok",
+                text="Delete",
                 theme_text_color="Custom",
                 text_color="red",
                 on_release=self.delete_model_confirm
             ),
         ]
         self.show_text_dialog(
-            "Delete the model files",
+            "Delete the model?",
             f"{model} will be deleted & action cannot be undone!",
             buttons
         )
@@ -710,7 +710,7 @@ class OnLlmApp(MDApp):
             try:
                 import shutil
                 shutil.rmtree(delete_path)
-                self.show_toast_msg(f"Deleted model files of {self.to_delete_model}")
+                self.show_toast_msg(f"Deleted all files of {self.to_delete_model}")
             except Exception as e:
                 self.show_toast_msg(f"Could not delete due to: {e}", is_error=True)
         self.to_delete_model = False

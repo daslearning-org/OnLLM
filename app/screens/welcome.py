@@ -34,33 +34,38 @@ Builder.load_string('''
         Image:
             source: root.fav_path
             fit_mode: 'contain'
-            size_hint_y: 0.2
-
-        MDLabel:
-            font_style: "H5"
-            halign: 'center'
-            adaptive_height: True
-            text: "Your Private & Offline AI-Chatbot from DasLearning.in"
+            size_hint_y: 0.4
 
         MDLabel:
             font_style: "H6"
             halign: 'center'
             adaptive_height: True
-            text: "You have a drop-down to select model and another drop-down to select maximum word limit for AI answer"
+            markup: True
+            text: "Your Private & Offline AI-Chatbot from [b][color=#2196F3]DasLearning.in[/color][/b]"
+
+        MDLabel:
+            font_style: "Body1"
+            halign: 'center'
+            adaptive_height: True
+            text: "You will have a drop-down to select model and another drop-down to select maximum word limit for AI answer"
 
         MDLabel:
             id: download_stat
             font_style: "Subtitle1"
             halign: 'center'
             adaptive_height: True
-            text: "Click start button to check if the model files are present"
+            text: "Click Start to go to the chatbot screen"
 
         MDFillRoundFlatButton:
             id: btn_start_chat
             pos_hint: {'center_x': 0.5}
             size_hint_x: 0.4
             text: "Start"
+            font_size: sp(18)
             on_release: app.start_from_welcome()
+
+        Widget:
+            size_hint_y: 0.1
 
 ''')
 

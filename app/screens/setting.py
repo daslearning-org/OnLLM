@@ -40,15 +40,7 @@ Builder.load_string('''
             MDScrollView:
                 MDList:
                     id: delete_model_list
-                    #OneLineAvatarIconListItem:
-                    #    text: "Preview in Image Selection!"
-                    #    IconLeftWidget:
-                    #        icon: "robot-happy"
-                    #    IconRightWidget:
-                    #        icon: "delete"
-                    #        on_release: app.img_preview_on()
-                    #        theme_text_color: "Custom"
-                    #        text_color: "gray"
+                    # Items will be added here
 
     MDBoxLayout: # Input box with Send button
         size_hint_y: 0.1
