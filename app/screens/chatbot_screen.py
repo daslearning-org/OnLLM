@@ -171,7 +171,7 @@ Builder.load_string('''
             adaptive_height: True
             #size_hint_y: 0.1
             spacing: dp(10)
-            padding: 4, 0, 4, 8
+            padding: 4, 0, 4, 0
             canvas.before:
                 Color:
                     rgb: parse_color('#dfcaeb')
@@ -184,6 +184,7 @@ Builder.load_string('''
                 text: "New"
                 md_bg_color: '#333036'
                 font_size: sp(10)
+                pos_hint: {'center_y': 0.5}
                 on_release: app.new_chat()
 
             MDDropDownItem:
@@ -192,6 +193,7 @@ Builder.load_string('''
                 text: "Model"
                 id: llm_menu
                 font_size: sp(14)
+                pos_hint: {'center_y': 0.5}
 
             MDDropDownItem:
                 #md_bg_color: "#bdc6b0"
@@ -199,6 +201,7 @@ Builder.load_string('''
                 text: "Length"
                 id: token_menu
                 font_size: sp(14)
+                pos_hint: {'center_y': 0.5}
 
             Widget:
                 size_hint_x: 1
