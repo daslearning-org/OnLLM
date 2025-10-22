@@ -3,10 +3,8 @@ import os
 os.environ['KIVY_GL_BACKEND'] = 'sdl2'
 import sys
 from threading import Thread
-import queue
 import requests
 import time
-import datetime
 import json
 import re
 
@@ -28,6 +26,7 @@ from kivymd.uix.menu import MDDropdownMenu
 from kivymd.uix.label import MDLabel
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.button import MDFlatButton, MDFloatingActionButton
+from kivymd.uix.filemanager import MDFileManager
 
 # app brains
 import numpy as np
@@ -74,6 +73,8 @@ class OnLlmApp(MDApp):
         self.process = None
         self.stop = False
         self.decoder_session = None
+        self.rag = None
+        self.doc_path = ""
         self.selected_llm = ""
         self.to_download_model = "na"
         self.messages = []
@@ -128,6 +129,20 @@ class OnLlmApp(MDApp):
             }
         }
         if platform == "android":
+            from android.permissions import request_permissions, Permission
+            sdk_version = 28
+            try:
+                VERSION = autoclass('android.os.Build$VERSION')
+                sdk_version = VERSION.SDK_INT
+                print(f"Android SDK: {sdk_version}")
+                #self.show_toast_msg(f"Android SDK: {sdk_version}")
+            except Exception as e:
+                print(f"Could not check the android SDK version: {e}")
+            if sdk_version >= 33:  # Android 13+
+                permissions = [Permission.READ_MEDIA_IMAGES]
+            else:  # Android 9–12
+                permissions = [Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE]
+            request_permissions(permissions)
             # paths on android
             context = autoclass('org.kivy.android.PythonActivity').mActivity
             android_path = context.getExternalFilesDir(None).getAbsolutePath()
@@ -194,7 +209,33 @@ class OnLlmApp(MDApp):
             items=token_drop_items,
         )
         self.root.ids.chatbot_scr.ids.token_menu.text = str(token_sizes[0])
+        self.is_doc_manager_open = False
+        self.doc_file_manager = MDFileManager(
+            exit_manager=self.doc_file_exit_manager,
+            select_path=self.select_doc_path,
+            ext=[".pdf", ".doc", ".docx"],  # Restrict to doc files
+            selector="file",  # Restrict to selecting files only
+            preview=False,
+            #show_hidden_files=True,
+        )
         print("Initialisation is successful")
+
+    def doc_file_exit_manager(self, instance=None):
+        self.is_doc_manager_open = False
+        self.doc_file_manager.close()
+
+    def select_doc_path(self, path: str):
+        self.doc_file_exit_manager()
+        self.doc_path = path
+        print(f"{self.doc_path}") # to be replaced with RAG logic
+
+    def open_doc_file_manager(self):
+        """Open the file manager to select a doc file. On android use Downloads or Documents folders only"""
+        try:
+            self.doc_file_manager.show(self.external_storage)  # external storage
+            self.is_doc_manager_open = True
+        except Exception as e:
+            self.show_toast_msg(f"Error: {e}", is_error=True)
 
     def set_llm_dropdown(self, stage="post-init"):
         menu_items = []
@@ -230,6 +271,15 @@ class OnLlmApp(MDApp):
         model_tokenizer = os.path.join(path_to_model, "tokenizer.json")
         model_onnx = os.path.join(path_to_model, "onnx", "model_int8.onnx")
         if not os.path.exists(model_config) or not os.path.exists(model_tokenizer) or not os.path.exists(model_onnx):
+            return False
+        else:
+            return True
+
+    def check_rag_models(self, model_name):
+        path_to_model = os.path.join(self.model_dir, f"{model_name}")
+        model_tokenizer = os.path.join(path_to_model, "tokenizer.json")
+        model_onnx = os.path.join(path_to_model, "model.onnx")
+        if not os.path.exists(model_tokenizer) or not os.path.exists(model_onnx):
             return False
         else:
             return True

@@ -242,6 +242,14 @@ Builder.load_string('''
                     size: self.width, self.height
                     pos: self.pos
 
+            MDIconButton:
+                icon: "file-document-plus"
+                icon_size: sp(16)
+                pos_hint: {'center_y': 0.5}
+                theme_icon_color: "Custom"
+                icon_color: "gray"
+                on_release: app.open_doc_file_manager()
+
             MDTextField:
                 id: chat_input
                 font_name: root.noto_path
@@ -256,7 +264,7 @@ Builder.load_string('''
 
             MDIconButton:
                 icon: "send"
-                icon_size: sp(32)
+                icon_size: sp(24)
                 pos_hint: {'center_y': 0.5}
                 theme_icon_color: "Custom"
                 icon_color: app.theme_cls.primary_color
