@@ -41,7 +41,7 @@ from screens.myrst import MyRstDocument
 from screens.chatbot_screen import TempSpinWait, ChatbotScreen, BotResp, BotTmpResp, UsrResp
 from screens.welcome import WelcomeScreen
 from screens.setting import DeleteModelItems, SettingsBox
-from .docRag import LocalRag
+from docRag import LocalRag
 
 # IMPORTANT: Set this property for keyboard behavior
 Window.softinput_mode = "below_target"
