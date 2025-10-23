@@ -607,7 +607,7 @@ class OnLlmApp(MDApp):
                 }
             )
             self.add_usr_message(user_message_add)
-            chat_input_widget.text = "" # blank the input
+            chat_input_widget.text = "" # blank the input # TBF
             self.tmp_txt = BotTmpResp()
             self.chat_history_id.add_widget(self.tmp_txt)
             msg_to_send = [llm_context]

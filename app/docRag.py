@@ -25,17 +25,6 @@ def clean_text(text):
     text = text.replace('\n', " ")
     return text.strip()
 
-def search_similar(conn, query_emb, top_k=3): # query_emb is now normalized
-    rows = conn.execute("SELECT chunk, embedding FROM docs").fetchall()
-    results = []
-    for chunk, emb_json in rows:
-        emb = np.array(json.loads(emb_json)) # This is already normalized
-        # --- SIMPLIFIED FORMULA ---
-        sim = np.dot(query_emb, emb) 
-        results.append((chunk, float(sim)))
-    results.sort(key=lambda x: x[1], reverse=True)
-    return results[:top_k]
-
 # ================== 3️⃣ TOKENIZER & EMBEDDINGS ==================
 class HuggingFaceTokenizer:
     def __init__(self, tokenizer_json, max_len=256):
@@ -144,8 +133,10 @@ class LocalRag:
             os.remove(db_path) # remove older rag db
         self.conn = sqlite3.connect(db_path)
         self.cursor = self.conn.cursor()
+        self.init_db()
         self.embedder = SentenceEmbedder(onnx_path, tokenizer_path)
         indx_stat = self.build_index(doc_path)
+        self.conn_closer()
         if indx_stat:
             final_stat = True
         else:
@@ -174,39 +165,38 @@ class LocalRag:
         else:
             return False
 
+    def search_similar(self, query_emb, top_k=3): # query_emb is now normalized
+        rows = self.cursor.execute("SELECT chunk, embedding FROM docs").fetchall()
+        results = []
+        for chunk, emb_json in rows:
+            emb = np.array(json.loads(emb_json)) # This is already normalized
+            # --- SIMPLIFIED FORMULA ---
+            sim = np.dot(query_emb, emb) 
+            results.append((chunk, float(sim)))
+        results.sort(key=lambda x: x[1], reverse=True)
+        return results[:top_k]
+
     def query_pipeline(self, question, top_k=3):
         q_emb = self.embedder.embed(question)[0]
         norm_q_emb = q_emb / np.linalg.norm(q_emb)
-        top_chunks = search_similar(self.conn, norm_q_emb, top_k)
+        top_chunks = self.search_similar(norm_q_emb, top_k)
         context = " ".join(ch for ch, _ in top_chunks)
         context = context.replace("\n", " ")
         return context
 
     def get_rag_prompt(self, question, callback=None):
+        db_path = os.path.join(self.config_dir, "vector.db")
+        self.conn = sqlite3.connect(db_path)
+        self.cursor = self.conn.cursor()
         context = self.query_pipeline(question)
         final_prompt = create_rag_prompt(question, context)
         if callback:
             Clock.schedule_once(lambda dt: callback(final_prompt))
         else:
             return final_prompt
-        
+
     def conn_closer(self):
         if self.conn:
             self.conn.close()
             self.conn = None
 
-
-# ================== 6️⃣ MAIN ==================
-## When working with direct RAG retrival
-if __name__ == "__main__":
-    if os.path.exists("vector_store.db"):
-        os.remove("vector_store.db")
-    conn = init_db() # need to create new db for each doc
-    embedder = SentenceEmbedder("all-MiniLM-L6-V2.onnx", "minilm-tokenizer.json")
-
-    # Index a sample document
-    #build_index("sample.docx", embedder, conn)
-
-    # Ask a question
-    question = "What is my name?"
-    #context_text = query_pipeline(question, embedder, conn)
