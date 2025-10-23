@@ -25,24 +25,6 @@ def clean_text(text):
     text = text.replace('\n', " ")
     return text.strip()
 
-# ================== 2️⃣ SQLITE VECTOR STORE ==================
-def init_db(db_path):
-    conn = sqlite3.connect(db_path)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS docs(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            chunk TEXT,
-            embedding TEXT
-        )
-    """)
-    conn.commit()
-    return conn
-
-def insert_chunk(conn, chunk, embedding):
-    conn.execute("INSERT INTO docs (chunk, embedding) VALUES (?, ?)",
-                 (chunk, json.dumps(embedding.tolist())))
-    conn.commit()
-
 def search_similar(conn, query_emb, top_k=3): # query_emb is now normalized
     rows = conn.execute("SELECT chunk, embedding FROM docs").fetchall()
     results = []
@@ -111,33 +93,6 @@ class SentenceEmbedder:
         emb = sum_emb / np.clip(mask_exp.sum(axis=1), 1e-9, None)
         return emb.astype(np.float32)
 
-# ================== 5️⃣ PIPELINE FUNCTIONS ==================
-def build_index(file_path, embedder, conn):
-    if file_path.endswith(".docx"):
-        text = extract_docx_text(file_path)
-    elif file_path.endswith(".pdf"):
-        text = extract_pdf_text(file_path)
-    text = clean_text(text)
-    chunks = [text[i:i+500] for i in range(0, len(text), 500)]
-    for ch in chunks:
-        emb = embedder.embed(ch)[0]
-        # Normalize the vector to unit length
-        norm_emb = emb / np.linalg.norm(emb)
-        insert_chunk(conn, ch, norm_emb) # Save the normalized embedding
-    print(f"Indexed {len(chunks)} chunks from {file_path}")
-    if len(chunks) >= 1:
-        return True
-    else:
-        return False
-
-def query_pipeline(question, embedder, conn, top_k=3):
-    q_emb = embedder.embed(question)[0]
-    norm_q_emb = q_emb / np.linalg.norm(q_emb)
-    top_chunks = search_similar(conn, norm_q_emb, top_k)
-    context = " ".join(ch for ch, _ in top_chunks)
-    context = context.replace("\n", " ")
-    return context
-
 def create_rag_prompt(question, context):
     prompt = f"""Based on the following context, please answer the question:
 
@@ -160,16 +115,37 @@ class LocalRag:
     def __init__(self, model_dir, config_dir) -> None:
         self.model_dir = model_dir
         self.config_dir = config_dir
+        self.conn = None
+        self.cursor = None
+
+    # ================== SQLITE VECTOR STORE ==================
+    def init_db(self):
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS docs(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chunk TEXT,
+                embedding TEXT
+            )
+        """)
+        self.conn.commit()
+
+    def insert_chunk(self, chunk, embedding):
+        self.cursor.execute("INSERT INTO docs (chunk, embedding) VALUES (?, ?)",
+                     (chunk, json.dumps(embedding.tolist())))
+        self.conn.commit()
 
     def start_rag_onnx_sess(self, doc_path, callback=None):
         onnx_path = os.path.join(self.model_dir, "all-MiniLM-L6-V2", "model.onnx")
         tokenizer_path = os.path.join(self.model_dir, "all-MiniLM-L6-V2", "tokenizer.json")
         db_path = os.path.join(self.config_dir, "vector.db")
+        if self.conn:
+            self.conn.close() # close previous db connection
         if os.path.exists(db_path):
-            os.remove(db_path) # remove older rag
-        self.conn = init_db(db_path)
+            os.remove(db_path) # remove older rag db
+        self.conn = sqlite3.connect(db_path)
+        self.cursor = self.conn.cursor()
         self.embedder = SentenceEmbedder(onnx_path, tokenizer_path)
-        indx_stat = build_index(doc_path, self.embedder, self.conn)
+        indx_stat = self.build_index(doc_path)
         if indx_stat:
             final_stat = True
         else:
@@ -179,13 +155,45 @@ class LocalRag:
         else:
             return final_stat
 
+    # ================== PIPELINE FUNCTIONS ==================
+    def build_index(self, file_path):
+        if file_path.endswith(".docx") or file_path.endswith(".doc"):
+            text = extract_docx_text(file_path)
+        elif file_path.endswith(".pdf"):
+            text = extract_pdf_text(file_path)
+        text = clean_text(text)
+        chunks = [text[i:i+500] for i in range(0, len(text), 500)]
+        for ch in chunks:
+            emb = self.embedder.embed(ch)[0]
+            # Normalize the vector to unit length
+            norm_emb = emb / np.linalg.norm(emb)
+            self.insert_chunk(ch, norm_emb) # Save the normalized embedding
+        print(f"Indexed {len(chunks)} chunks from {file_path}")
+        if len(chunks) >= 1:
+            return True
+        else:
+            return False
+
+    def query_pipeline(self, question, top_k=3):
+        q_emb = self.embedder.embed(question)[0]
+        norm_q_emb = q_emb / np.linalg.norm(q_emb)
+        top_chunks = search_similar(self.conn, norm_q_emb, top_k)
+        context = " ".join(ch for ch, _ in top_chunks)
+        context = context.replace("\n", " ")
+        return context
+
     def get_rag_prompt(self, question, callback=None):
-        context = query_pipeline(question, self.embedder, self.conn)
+        context = self.query_pipeline(question)
         final_prompt = create_rag_prompt(question, context)
         if callback:
             Clock.schedule_once(lambda dt: callback(final_prompt))
         else:
             return final_prompt
+        
+    def conn_closer(self):
+        if self.conn:
+            self.conn.close()
+            self.conn = None
 
 
 # ================== 6️⃣ MAIN ==================
@@ -197,8 +205,8 @@ if __name__ == "__main__":
     embedder = SentenceEmbedder("all-MiniLM-L6-V2.onnx", "minilm-tokenizer.json")
 
     # Index a sample document
-    build_index("sample.docx", embedder, conn)
+    #build_index("sample.docx", embedder, conn)
 
     # Ask a question
     question = "What is my name?"
-    context_text = query_pipeline(question, embedder, conn)
+    #context_text = query_pipeline(question, embedder, conn)

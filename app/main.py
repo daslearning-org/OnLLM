@@ -246,6 +246,8 @@ class OnLlmApp(MDApp):
                 model_dir=self.model_dir,
                 config_dir=self.config_dir
             )
+        else:
+            self.rag_sess.conn_closer()
         Thread(target=self.rag_sess.start_rag_onnx_sess, args=(self.doc_path, self.rag_init_callback), daemon=True).start()
 
     def open_doc_file_manager(self):

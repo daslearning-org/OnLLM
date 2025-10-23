@@ -41,6 +41,8 @@ Builder.load_string('''
         text: root.text
         font_style: "Subtitle1"
         adaptive_width: True
+        theme_text_color: "Custom",
+        text_color: "#f7f7f5"
 
     MDSpinner:
         size_hint: None, None
