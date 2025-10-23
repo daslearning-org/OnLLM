@@ -41,6 +41,7 @@ from screens.myrst import MyRstDocument
 from screens.chatbot_screen import TempSpinWait, ChatbotScreen, BotResp, BotTmpResp, UsrResp
 from screens.welcome import WelcomeScreen
 from screens.setting import DeleteModelItems, SettingsBox
+from .docRag import LocalRag
 
 # IMPORTANT: Set this property for keyboard behavior
 Window.softinput_mode = "below_target"
@@ -73,8 +74,9 @@ class OnLlmApp(MDApp):
         self.process = None
         self.stop = False
         self.decoder_session = None
-        self.rag = None
-        self.doc_path = ""
+        self.rag_sess = None
+        self.rag_ok = False
+        self.doc_path = None
         self.selected_llm = ""
         self.to_download_model = "na"
         self.messages = []
@@ -126,6 +128,14 @@ class OnLlmApp(MDApp):
                 "tokens": ["", "<|im_start|>", "<|im_end|>"],
                 "eos_ids": ["<|endoftext|>"],
                 "att_mask": True
+            }
+        }
+        self.rag_models = {
+            "smollm2-360m": {
+                "name": "all-MiniLM-L6-V2",
+                "url": "https://huggingface.co/daslearning/Embedding-Onnx/resolve/main/onnx/all-MiniLM-L6-V2.tar.gz?download=true",
+                "size": "85MB",
+                "platform": "android"
             }
         }
         if platform == "android":
@@ -227,10 +237,23 @@ class OnLlmApp(MDApp):
     def select_doc_path(self, path: str):
         self.doc_file_exit_manager()
         self.doc_path = path
-        print(f"{self.doc_path}") # to be replaced with RAG logic
+        print(f"{self.doc_path}") # TBR
+        self.tmp_wait = TempSpinWait()
+        self.tmp_wait.text = "Analyzing the doc, please wait..."
+        self.chat_history_id.add_widget(self.tmp_wait)
+        if not self.rag_sess:
+            self.rag_sess = LocalRag(
+                model_dir=self.model_dir,
+                config_dir=self.config_dir
+            )
+        Thread(target=self.rag_sess.start_rag_onnx_sess, args=(self.doc_path, self.rag_init_callback), daemon=True).start()
 
     def open_doc_file_manager(self):
         """Open the file manager to select a doc file. On android use Downloads or Documents folders only"""
+        rag_model_exists = self.check_rag_models("all-MiniLM-L6-V2")
+        if not rag_model_exists:
+            self.show_toast_msg("You need to dowload the model first!") # apply actual logic with popup
+            return
         try:
             self.doc_file_manager.show(self.external_storage)  # external storage
             self.is_doc_manager_open = True
@@ -497,6 +520,19 @@ class OnLlmApp(MDApp):
         self.token_count = int(text)
         self.root.ids.chatbot_scr.ids.token_menu.text = text
 
+    def rag_init_callback(self, check):
+        if check:
+            self.rag_ok = True
+            self.show_toast_msg("Document processed, you can ask quesions on your DOC")
+        else:
+            self.show_toast_msg("Document processed failed, your answer will be generic", is_error=True)
+        if self.tmp_wait:
+            self.chat_history_id.remove_widget(self.tmp_wait)
+            self.tmp_wait = None
+
+    def rag_qa_callback(self, prompt):
+        self.send_message(button_instance=None, chat_input_widget=None, callback=True, rag_usr_prompt=prompt)
+
     def stop_chat(self):
         self.stop = True
         self.is_llm_running = False
@@ -538,14 +574,28 @@ class OnLlmApp(MDApp):
         usr_msg_label.text = msg_to_add
         self.chat_history_id.add_widget(usr_msg_label)
 
-    def send_message(self, button_instance, chat_input_widget):
+    def send_message(self, button_instance, chat_input_widget, callback=False, rag_usr_prompt=""):
         if self.selected_llm == "":
             self.show_toast_msg("Please select a model first!", is_error=True)
             return
         if self.is_llm_running:
             self.show_toast_msg("Please wait for the current response", is_error=True)
             return
-        user_message = chat_input_widget.text.strip()
+        if callback:
+            user_message = rag_usr_prompt.strip()
+            llm_context = {"role": "system", "content": "You are a helpful assistant that answers questions based on the provided context."}
+            if self.tmp_wait:
+                self.chat_history_id.remove_widget(self.tmp_wait)
+                self.tmp_wait = None
+        else:
+            user_message = chat_input_widget.text.strip()
+            if self.rag_ok:
+                Thread(target=self.rag_sess.get_rag_prompt, args=(user_message,self.rag_qa_callback), daemon=True).start()
+                self.tmp_wait = TempSpinWait()
+                self.tmp_wait.text = "Please wait while reading the doc..."
+                self.chat_history_id.add_widget(self.tmp_wait)
+                return
+            llm_context = {"role": "system", "content": "You are a helpful assistant."}
         if user_message:
             user_message_add = f"{user_message}"
             self.messages.append(
@@ -558,7 +608,7 @@ class OnLlmApp(MDApp):
             chat_input_widget.text = "" # blank the input
             self.tmp_txt = BotTmpResp()
             self.chat_history_id.add_widget(self.tmp_txt)
-            msg_to_send = [{"role": "system", "content": "You are a helpful assistant."}]
+            msg_to_send = [llm_context]
             msg_to_send.extend(self.messages[-3:]) # taking last three messages only
             ollama_thread = Thread(target=self.chat_with_llm, args=(msg_to_send,), daemon=True)
             ollama_thread.start()
