@@ -245,12 +245,13 @@ Builder.load_string('''
                     pos: self.pos
 
             MDIconButton:
+                id: rag_doc
                 icon: "file-document-plus"
                 icon_size: sp(16)
                 pos_hint: {'center_y': 0.5}
                 theme_icon_color: "Custom"
                 icon_color: "gray"
-                on_release: app.open_doc_file_manager()
+                on_release: app.rag_file_manager()
 
             MDTextField:
                 id: chat_input

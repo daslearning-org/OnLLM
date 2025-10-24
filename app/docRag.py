@@ -194,6 +194,7 @@ class LocalRag:
         self.cursor = self.conn.cursor()
         context = self.query_pipeline(question)
         final_prompt = create_rag_prompt(question, context)
+        self.conn_closer()
         if callback:
             Clock.schedule_once(lambda dt: callback(final_prompt))
         else:

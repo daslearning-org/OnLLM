@@ -250,17 +250,23 @@ class OnLlmApp(MDApp):
             self.rag_sess.conn_closer()
         Thread(target=self.rag_sess.start_rag_onnx_sess, args=(self.doc_path, self.rag_init_callback), daemon=True).start()
 
-    def open_doc_file_manager(self):
+    def rag_file_manager(self):
         """Open the file manager to select a doc file. On android use Downloads or Documents folders only"""
-        rag_model_exists = self.check_rag_models("all-MiniLM-L6-V2")
-        if not rag_model_exists:
-            self.show_toast_msg("You need to dowload the model first!") # apply actual logic with popup
-            return
-        try:
-            self.doc_file_manager.show(self.external_storage)  # external storage
-            self.is_doc_manager_open = True
-        except Exception as e:
-            self.show_toast_msg(f"Error: {e}", is_error=True)
+        rag_btn = self.root.ids.chatbot_scr.ids.rag_doc
+        if self.rag_ok:
+            self.rag_ok = False
+            rag_btn.icon = "file-document-plus"
+            rag_btn.icon_color = "gray"
+        else:
+            rag_model_exists = self.check_rag_models("all-MiniLM-L6-V2")
+            if not rag_model_exists:
+                self.show_toast_msg("You need to dowload the model first!") # apply actual logic with popup
+                return
+            try:
+                self.doc_file_manager.show(self.external_storage)  # external storage
+                self.is_doc_manager_open = True
+            except Exception as e:
+                self.show_toast_msg(f"Error: {e}", is_error=True)
 
     def set_llm_dropdown(self, stage="post-init"):
         menu_items = []
@@ -523,8 +529,11 @@ class OnLlmApp(MDApp):
         self.root.ids.chatbot_scr.ids.token_menu.text = text
 
     def rag_init_callback(self, check):
+        rag_btn = self.root.ids.chatbot_scr.ids.rag_doc
         if check:
             self.rag_ok = True
+            rag_btn.icon = "file-document-remove"
+            rag_btn.icon_color = "orange"
             self.show_toast_msg("Document processed, you can ask quesions on your DOC")
         else:
             self.show_toast_msg("Document processed failed, your answer will be generic", is_error=True)
