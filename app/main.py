@@ -596,22 +596,34 @@ class OnLlmApp(MDApp):
                 self.tmp_wait = TempSpinWait()
                 self.tmp_wait.text = "Please wait while reading the doc..."
                 self.chat_history_id.add_widget(self.tmp_wait)
-                return
+                #return
             llm_context = {"role": "system", "content": "You are a helpful assistant."}
+            chat_input_widget.text = "" # blank the input # TBF
         if user_message:
             user_message_add = f"{user_message}"
-            self.messages.append(
-                {
-                    "role": "user",
-                    "content": user_message
-                }
-            )
-            self.add_usr_message(user_message_add)
-            chat_input_widget.text = "" # blank the input # TBF
+            if not callback:
+                self.add_usr_message(user_message_add)
+                if self.rag_ok:
+                    # RAG will use the callback method
+                    return
+                self.messages.append(
+                    {
+                        "role": "user",
+                        "content": user_message
+                    }
+                )
+            print(f"final usr msg: {user_message}") # debug
             self.tmp_txt = BotTmpResp()
             self.chat_history_id.add_widget(self.tmp_txt)
             msg_to_send = [llm_context]
-            msg_to_send.extend(self.messages[-3:]) # taking last three messages only
+            if callback:
+                rag_msg = {
+                    "role": "user",
+                    "content": user_message
+                }
+                msg_to_send.append(rag_msg)
+            else:
+                msg_to_send.extend(self.messages[-3:]) # taking last three messages only
             ollama_thread = Thread(target=self.chat_with_llm, args=(msg_to_send,), daemon=True)
             ollama_thread.start()
             self.is_llm_running = True

@@ -4,8 +4,9 @@ OnLLM is the platform to run `Large Language Model` (LLM) or SLM models using `O
 > The name is derived from: `On` from Onnx + `LLM`. Our approach is always local & offline first (you will need internet to download the model files for the first time). Arificial Intelligence (AI) to be accesible to everyone.
 
 ### Features
-1. An inbuild chatbot to chat with the AI model(s).
-2. No trackers, no Ads, No data collection, completely Private.
+1. ✅️ An inbuild chatbot to chat with the AI model(s).
+2. ✅️ A local offline RAG to query on our selected document (pdf/docx) directly in the chatbot.
+2. ✅️ No trackers, no Ads, No data collection, completely Private.
 
 [![GitHub Downloads](https://img.shields.io/github/downloads/daslearning-org/OnLLM/total)](https://github.com/daslearning-org/OnLLM/releases)
 [![YouTube Video Views](https://img.shields.io/youtube/views/D-KwL59GgKA)](https://www.youtube.com/watch?v=D-KwL59GgKA)

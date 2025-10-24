@@ -153,7 +153,11 @@ class LocalRag:
         elif file_path.endswith(".pdf"):
             text = extract_pdf_text(file_path)
         text = clean_text(text)
-        chunks = [text[i:i+500] for i in range(0, len(text), 500)]
+        # chunk properties
+        chunk_size = 500
+        overlap = 100 # 20%
+        step = chunk_size - overlap
+        chunks = [text[i:i + chunk_size] for i in range(0, len(text), step)]
         for ch in chunks:
             emb = self.embedder.embed(ch)[0]
             # Normalize the vector to unit length
