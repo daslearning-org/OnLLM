@@ -1,7 +1,7 @@
 import sqlite3, json, re
 import numpy as np
 from onnxruntime import InferenceSession
-from docx import Document
+import docx2txt
 from pypdf import PdfReader
 from tokenizers import Tokenizer
 import os
@@ -9,8 +9,8 @@ from kivy.clock import Clock
 
 # ================== 1️⃣ TEXT EXTRACTION ==================
 def extract_docx_text(path):
-    doc = Document(path)
-    return "\n".join(p.text for p in doc.paragraphs)
+    doc_txt = docx2txt.process(path)
+    return doc_txt
 
 def extract_pdf_text(path):
     reader = PdfReader(path)
@@ -148,14 +148,14 @@ class LocalRag:
 
     # ================== PIPELINE FUNCTIONS ==================
     def build_index(self, file_path):
-        if file_path.endswith(".docx") or file_path.endswith(".doc"):
+        if file_path.endswith(".docx"):
             text = extract_docx_text(file_path)
-        elif file_path.endswith(".pdf"):
+        if file_path.endswith(".pdf"):
             text = extract_pdf_text(file_path)
         text = clean_text(text)
         # chunk properties
         chunk_size = 500
-        overlap = 100 # 20%
+        overlap = 50 # 10%
         step = chunk_size - overlap
         chunks = [text[i:i + chunk_size] for i in range(0, len(text), step)]
         for ch in chunks:

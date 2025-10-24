@@ -4,5 +4,5 @@ m2r2
 numpy
 onnxruntime
 tokenizers
-python-docx
+docx2txt
 pypdf

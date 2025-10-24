@@ -47,7 +47,7 @@ from docRag import LocalRag
 Window.softinput_mode = "below_target"
 
 ## Global definitions
-__version__ = "0.1.2" # The APP version
+__version__ = "0.2.0" # The APP version
 
 # Determine the base path for your application's resources
 if getattr(sys, 'frozen', False):
@@ -131,7 +131,7 @@ class OnLlmApp(MDApp):
             }
         }
         self.rag_models = {
-            "smollm2-360m": {
+            "all-MiniLM-L6-V2": {
                 "name": "all-MiniLM-L6-V2",
                 "url": "https://huggingface.co/daslearning/Embedding-Onnx/resolve/main/onnx/all-MiniLM-L6-V2.tar.gz?download=true",
                 "size": "85MB",
@@ -223,7 +223,7 @@ class OnLlmApp(MDApp):
         self.doc_file_manager = MDFileManager(
             exit_manager=self.doc_file_exit_manager,
             select_path=self.select_doc_path,
-            ext=[".pdf", ".doc", ".docx"],  # Restrict to doc files
+            ext=[".pdf", ".docx"],  # Restrict to doc files
             selector="file",  # Restrict to selecting files only
             preview=False,
             #show_hidden_files=True,
@@ -258,9 +258,14 @@ class OnLlmApp(MDApp):
             rag_btn.icon = "file-document-plus"
             rag_btn.icon_color = "gray"
         else:
-            rag_model_exists = self.check_rag_models("all-MiniLM-L6-V2")
+            model_name = "all-MiniLM-L6-V2"
+            rag_model_exists = self.check_rag_models(model_name)
             if not rag_model_exists:
-                self.show_toast_msg("You need to dowload the model first!") # apply actual logic with popup
+                llm_size = self.rag_models[model_name]['size']
+                self.to_download_model = model_name
+                self.model_file_size = f"You need to downlaod the file for the first time (~{llm_size})"
+                self.popup_download_model()
+                #self.show_toast_msg("You need to dowload the model first!") # apply actual logic with popup
                 return
             try:
                 self.doc_file_manager.show(self.external_storage)  # external storage
@@ -415,7 +420,11 @@ class OnLlmApp(MDApp):
         )
         self.chat_history_id.add_widget(self.download_progress)
         model_name = self.to_download_model
-        url = self.llm_models[model_name]['url']
+        embed_model_list = list(self.rag_models.keys())
+        if model_name in embed_model_list:
+            url = self.rag_models[model_name]['url']
+        else:
+            url = self.llm_models[model_name]['url']
         path_to_model = os.path.join(self.model_dir, f"{model_name}.tar.gz")
         self.download_model_file(url, path_to_model, instance)
 
@@ -621,7 +630,7 @@ class OnLlmApp(MDApp):
                         "content": user_message
                     }
                 )
-            print(f"final usr msg: {user_message}") # debug
+            print(f"\n**final usr msg: {user_message}") # debug
             self.tmp_txt = BotTmpResp()
             self.chat_history_id.add_widget(self.tmp_txt)
             msg_to_send = [llm_context]

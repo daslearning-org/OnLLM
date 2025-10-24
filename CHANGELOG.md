@@ -1,7 +1,7 @@
 ## Changes
 
 ### 0.2.0
-- Adding a feature to add `pdf` or `docx` (word doc) & ask question on that (Local Offline RAG).
+- Adding a feature to add `pdf` or `docx` (word document) & ask question on that (Local Offline RAG).
 - Some UI changes.
 
 ### 0.1.2
