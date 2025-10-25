@@ -27,6 +27,7 @@ from kivymd.uix.label import MDLabel
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.button import MDFlatButton, MDFloatingActionButton
 from kivymd.uix.filemanager import MDFileManager
+from kivymd.uix.toolbar import MDTopAppBar # due to linux package issue
 
 # app brains
 import numpy as np
