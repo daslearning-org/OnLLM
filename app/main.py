@@ -149,9 +149,9 @@ class OnLlmApp(MDApp):
                 #self.show_toast_msg(f"Android SDK: {sdk_version}")
             except Exception as e:
                 print(f"Could not check the android SDK version: {e}")
-            if sdk_version < 30:  # Android 10 & below
-                permissions = [Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE]
-                request_permissions(permissions)
+            #if sdk_version < 30:  # Android 10 & below
+            permissions = [Permission.READ_EXTERNAL_STORAGE]
+            request_permissions(permissions)
             # paths on android
             context = autoclass('org.kivy.android.PythonActivity').mActivity
             android_path = context.getExternalFilesDir(None).getAbsolutePath()
