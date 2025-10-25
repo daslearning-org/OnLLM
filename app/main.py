@@ -17,6 +17,7 @@ from kivy.utils import platform
 from kivy.core.clipboard import Clipboard
 from kivy.core.text import LabelBase
 from kivy.clock import Clock
+from plyer import filechooser
 if platform == "android":
     from jnius import autoclass
 
@@ -149,7 +150,7 @@ class OnLlmApp(MDApp):
             except Exception as e:
                 print(f"Could not check the android SDK version: {e}")
             if sdk_version >= 33:  # Android 13+
-                permissions = [Permission.READ_MEDIA_IMAGES]
+                permissions = [Permission.READ_EXTERNAL_STORAGE]
             else:  # Android 9–12
                 permissions = [Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE]
             request_permissions(permissions)
@@ -220,35 +221,25 @@ class OnLlmApp(MDApp):
         )
         self.root.ids.chatbot_scr.ids.token_menu.text = str(token_sizes[0])
         self.is_doc_manager_open = False
-        self.doc_file_manager = MDFileManager(
-            exit_manager=self.doc_file_exit_manager,
-            select_path=self.select_doc_path,
-            ext=[".pdf", ".docx"],  # Restrict to doc files
-            selector="file",  # Restrict to selecting files only
-            preview=False,
-            #show_hidden_files=True,
-        )
         print("Initialisation is successful")
 
     def doc_file_exit_manager(self, instance=None):
         self.is_doc_manager_open = False
-        self.doc_file_manager.close()
 
-    def select_doc_path(self, path: str):
+    def select_doc_path(self, path):
         self.doc_file_exit_manager()
-        self.doc_path = path
-        print(f"{self.doc_path}") # TBR
-        self.tmp_wait = TempSpinWait()
-        self.tmp_wait.text = "Analyzing the doc, please wait..."
-        self.chat_history_id.add_widget(self.tmp_wait)
-        if not self.rag_sess:
-            self.rag_sess = LocalRag(
-                model_dir=self.model_dir,
-                config_dir=self.config_dir
-            )
-        else:
-            self.rag_sess.conn_closer()
-        Thread(target=self.rag_sess.start_rag_onnx_sess, args=(self.doc_path, self.rag_init_callback), daemon=True).start()
+        if path:
+            self.doc_path = path[0]
+            print(f"{self.doc_path}") # TBR
+            self.tmp_wait = TempSpinWait()
+            self.tmp_wait.text = "Analyzing the doc, please wait..."
+            self.chat_history_id.add_widget(self.tmp_wait)
+            if not self.rag_sess:
+                self.rag_sess = LocalRag(
+                    model_dir=self.model_dir,
+                    config_dir=self.config_dir
+                )
+            Thread(target=self.rag_sess.start_rag_onnx_sess, args=(self.doc_path, self.rag_init_callback), daemon=True).start()
 
     def rag_file_manager(self):
         """Open the file manager to select a doc file. On android use Downloads or Documents folders only"""
@@ -260,6 +251,9 @@ class OnLlmApp(MDApp):
         else:
             model_name = "all-MiniLM-L6-V2"
             rag_model_exists = self.check_rag_models(model_name)
+            if self.is_downloading:
+                self.show_toast_msg("Please wait for the current download to be finished!", is_error=True)
+                return
             if not rag_model_exists:
                 llm_size = self.rag_models[model_name]['size']
                 self.to_download_model = model_name
@@ -268,7 +262,13 @@ class OnLlmApp(MDApp):
                 #self.show_toast_msg("You need to dowload the model first!") # apply actual logic with popup
                 return
             try:
-                self.doc_file_manager.show(self.external_storage)  # external storage
+                filechooser.open_file(
+                    on_selection=self.select_doc_path,
+                    filters=[
+                        "*.pdf",
+                        "*.docx"
+                    ]
+                )
                 self.is_doc_manager_open = True
             except Exception as e:
                 self.show_toast_msg(f"Error: {e}", is_error=True)
