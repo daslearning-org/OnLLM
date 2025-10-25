@@ -109,6 +109,8 @@ pyinstaller desktopApp.spec
 ```
 
 ## 🔗 LLM Models used in this project
+
+### LLM (QA) models:
 The models are being taken from different sources & below are the models available as on today. Size is the compressed size (approax). Few models which are marked with warning (⚠️) symbol may be very slow or unresponsive on `Android` or low power devices.
 
 | Model | Size | Android | Desktop |
@@ -116,3 +118,10 @@ The models are being taken from different sources & below are the models availab
 | [SmolLM2-135M](https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct) | 95MB | ✅️ | ✅️ |
 | [SmolLM2-360M](https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct) | 241MB | ✅️ | ✅️ |
 | [Gemma3-1B](https://huggingface.co/onnx-community/gemma-3-1b-it-ONNX) | 645MB | ⚠️ | ✅️ |
+
+### Embed models (Document RAG):
+It follows the same priciples as above.
+
+| Model | Size | Android | Desktop |
+| :---- | :--- | :-----: | :-----: |
+| [all-MiniLM-L6-V2](https://huggingface.co/onnx-models/all-MiniLM-L6-v2-onnx) | 85MB | ✅️ | ✅️ |
