@@ -229,8 +229,11 @@ class OnLlmApp(MDApp):
     def select_doc_path(self, path):
         self.doc_file_exit_manager()
         if path:
+            Clock.schedule_once(lambda dt: self.doc_selection_processing(path))
+
+    def doc_selection_processing(self, path):
+        if path:
             self.doc_path = path[0]
-            print(f"{self.doc_path}") # TBR
             self.tmp_wait = TempSpinWait()
             self.tmp_wait.text = "Analyzing the doc, please wait..."
             self.chat_history_id.add_widget(self.tmp_wait)
@@ -616,7 +619,7 @@ class OnLlmApp(MDApp):
                 self.chat_history_id.add_widget(self.tmp_wait)
                 #return
             llm_context = {"role": "system", "content": "You are a helpful assistant."}
-            chat_input_widget.text = "" # blank the input # TBF
+            chat_input_widget.text = ""
         if user_message:
             user_message_add = f"{user_message}"
             if not callback:
@@ -630,7 +633,6 @@ class OnLlmApp(MDApp):
                         "content": user_message
                     }
                 )
-            print(f"\n**final usr msg: {user_message}") # debug
             self.tmp_txt = BotTmpResp()
             self.chat_history_id.add_widget(self.tmp_txt)
             msg_to_send = [llm_context]
