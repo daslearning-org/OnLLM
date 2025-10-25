@@ -233,7 +233,8 @@ class OnLlmApp(MDApp):
 
     def doc_selection_processing(self, path):
         if path:
-            self.doc_path = path[0]
+            self.doc_path = str(path[0])
+            print(f"\n**Selected doc path: {self.doc_path} & full path list {path}") # debug
             self.tmp_wait = TempSpinWait()
             self.tmp_wait.text = "Analyzing the doc, please wait..."
             self.chat_history_id.add_widget(self.tmp_wait)

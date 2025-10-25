@@ -124,6 +124,7 @@ class LocalRag:
         self.conn.commit()
 
     def start_rag_onnx_sess(self, doc_path, callback=None):
+        print(f"***Doc path in RAG: {doc_path}")
         onnx_path = os.path.join(self.model_dir, "all-MiniLM-L6-V2", "model.onnx")
         tokenizer_path = os.path.join(self.model_dir, "all-MiniLM-L6-V2", "tokenizer.json")
         db_path = os.path.join(self.config_dir, "vector.db")
@@ -150,8 +151,10 @@ class LocalRag:
     def build_index(self, file_path):
         if file_path.endswith(".docx"):
             text = extract_docx_text(file_path)
-        if file_path.endswith(".pdf"):
+        elif file_path.endswith(".pdf"):
             text = extract_pdf_text(file_path)
+        else:
+            return False
         text = clean_text(text)
         # chunk properties
         chunk_size = 500
