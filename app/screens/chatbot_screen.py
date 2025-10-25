@@ -38,9 +38,11 @@ Builder.load_string('''
     padding: dp(8)
 
     MDLabel:
-        text: "Please wait..."
+        text: root.text
         font_style: "Subtitle1"
         adaptive_width: True
+        theme_text_color: "Custom"
+        text_color: "#f7f7f5"
 
     MDSpinner:
         size_hint: None, None
@@ -171,7 +173,7 @@ Builder.load_string('''
             adaptive_height: True
             #size_hint_y: 0.1
             spacing: dp(10)
-            padding: 4, 0, 4, 8
+            padding: 4, 0, 4, 0
             canvas.before:
                 Color:
                     rgb: parse_color('#dfcaeb')
@@ -184,6 +186,7 @@ Builder.load_string('''
                 text: "New"
                 md_bg_color: '#333036'
                 font_size: sp(10)
+                pos_hint: {'center_y': 0.5}
                 on_release: app.new_chat()
 
             MDDropDownItem:
@@ -192,6 +195,7 @@ Builder.load_string('''
                 text: "Model"
                 id: llm_menu
                 font_size: sp(14)
+                pos_hint: {'center_y': 0.5}
 
             MDDropDownItem:
                 #md_bg_color: "#bdc6b0"
@@ -199,6 +203,7 @@ Builder.load_string('''
                 text: "Length"
                 id: token_menu
                 font_size: sp(14)
+                pos_hint: {'center_y': 0.5}
 
             Widget:
                 size_hint_x: 1
@@ -239,6 +244,15 @@ Builder.load_string('''
                     size: self.width, self.height
                     pos: self.pos
 
+            MDIconButton:
+                id: rag_doc
+                icon: "file-document-plus"
+                icon_size: sp(16)
+                pos_hint: {'center_y': 0.5}
+                theme_icon_color: "Custom"
+                icon_color: "gray"
+                on_release: app.rag_file_manager()
+
             MDTextField:
                 id: chat_input
                 font_name: root.noto_path
@@ -253,7 +267,7 @@ Builder.load_string('''
 
             MDIconButton:
                 icon: "send"
-                icon_size: sp(32)
+                icon_size: sp(24)
                 pos_hint: {'center_y': 0.5}
                 theme_icon_color: "Custom"
                 icon_color: app.theme_cls.primary_color
@@ -262,7 +276,9 @@ Builder.load_string('''
 ''')
 
 class TempSpinWait(MDBoxLayout):
-    pass
+    text = StringProperty("")
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
 class UsrResp(MDBoxLayout):
     text = StringProperty("")

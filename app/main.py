@@ -3,10 +3,8 @@ import os
 os.environ['KIVY_GL_BACKEND'] = 'sdl2'
 import sys
 from threading import Thread
-import queue
 import requests
 import time
-import datetime
 import json
 import re
 
@@ -28,6 +26,8 @@ from kivymd.uix.menu import MDDropdownMenu
 from kivymd.uix.label import MDLabel
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.button import MDFlatButton, MDFloatingActionButton
+from kivymd.uix.filemanager import MDFileManager
+from kivymd.uix.toolbar import MDTopAppBar # due to linux package issue
 
 # app brains
 import numpy as np
@@ -42,12 +42,13 @@ from screens.myrst import MyRstDocument
 from screens.chatbot_screen import TempSpinWait, ChatbotScreen, BotResp, BotTmpResp, UsrResp
 from screens.welcome import WelcomeScreen
 from screens.setting import DeleteModelItems, SettingsBox
+from docRag import LocalRag
 
 # IMPORTANT: Set this property for keyboard behavior
 Window.softinput_mode = "below_target"
 
 ## Global definitions
-__version__ = "0.1.2" # The APP version
+__version__ = "0.2.0" # The APP version
 
 # Determine the base path for your application's resources
 if getattr(sys, 'frozen', False):
@@ -70,10 +71,14 @@ class OnLlmApp(MDApp):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        #Window.bind(on_keyboard=self.events)
+        Window.bind(on_keyboard=self.events)
         self.process = None
         self.stop = False
         self.decoder_session = None
+        self.rag_sess = None
+        self.rag_ok = False
+        self.doc_path = None
+        self.file_permission = False
         self.selected_llm = ""
         self.to_download_model = "na"
         self.messages = []
@@ -127,12 +132,42 @@ class OnLlmApp(MDApp):
                 "att_mask": True
             }
         }
+        self.rag_models = {
+            "all-MiniLM-L6-V2": {
+                "name": "all-MiniLM-L6-V2",
+                "url": "https://huggingface.co/daslearning/Embedding-Onnx/resolve/main/onnx/all-MiniLM-L6-V2.tar.gz?download=true",
+                "size": "85MB",
+                "platform": "android"
+            }
+        }
         if platform == "android":
+            from android.permissions import request_permissions, check_permission, Permission
+            sdk_version = 28
+            try:
+                VERSION = autoclass('android.os.Build$VERSION')
+                sdk_version = VERSION.SDK_INT
+                print(f"Android SDK: {sdk_version}")
+                #self.show_toast_msg(f"Android SDK: {sdk_version}")
+            except Exception as e:
+                print(f"Could not check the android SDK version: {e}")
+            if sdk_version >= 30:  # Android 11+
+                permissions = [Permission.READ_MEDIA_IMAGES]
+            else:
+                permissions = [Permission.READ_EXTERNAL_STORAGE]
+            request_permissions(permissions)
+            try:
+                if sdk_version >= 30:
+                    self.file_permission = check_permission(Permission.READ_MEDIA_IMAGES)
+                else:
+                    self.file_permission = check_permission(Permission.READ_EXTERNAL_STORAGE)
+            except Exception as e:
+                print(f"Error while checking sms permission: {e}")
             # paths on android
             context = autoclass('org.kivy.android.PythonActivity').mActivity
             android_path = context.getExternalFilesDir(None).getAbsolutePath()
             self.model_dir = os.path.join(android_path, 'model_files')
             self.op_dir = os.path.join(android_path, 'outputs')
+            self.in_dir = os.path.join(android_path, 'inputs')
             self.config_dir = os.path.join(android_path, 'config')
             self.internal_storage = android_path
             try:
@@ -146,9 +181,12 @@ class OnLlmApp(MDApp):
             self.model_dir = os.path.join(self.user_data_dir, 'model_files')
             self.config_dir = os.path.join(self.user_data_dir, 'config')
             self.op_dir = os.path.join(self.user_data_dir, 'outputs')
+            self.in_dir = os.path.join(self.user_data_dir, 'inputs')
+            self.file_permission = True
         os.makedirs(self.model_dir, exist_ok=True)
         os.makedirs(self.op_dir, exist_ok=True)
         os.makedirs(self.config_dir, exist_ok=True)
+        os.makedirs(self.in_dir, exist_ok=True)
         # update models from local model config
         self.extra_models_config = os.path.join(self.config_dir, 'extra_models.json')
         if os.path.exists(self.extra_models_config):
@@ -194,7 +232,64 @@ class OnLlmApp(MDApp):
             items=token_drop_items,
         )
         self.root.ids.chatbot_scr.ids.token_menu.text = str(token_sizes[0])
+        self.is_doc_manager_open = False
+        self.doc_file_manager = MDFileManager(
+            exit_manager=self.doc_file_exit_manager,
+            select_path=self.select_doc_path,
+            ext=[".pdf", ".docx", ".jpg"],  # Restrict to doc files
+            selector="file",  # Restrict to selecting files only
+            preview=False,
+            #show_hidden_files=True,
+        )
         print("Initialisation is successful")
+
+    def doc_file_exit_manager(self, instance=None):
+        self.is_doc_manager_open = False
+        self.doc_file_manager.close()
+
+    def select_doc_path(self, path):
+        self.doc_file_exit_manager()
+        if path:
+            self.doc_path = path
+            print(f"\n**Selected doc path: {self.doc_path}") # debug
+            self.tmp_wait = TempSpinWait()
+            self.tmp_wait.text = "Analyzing the doc, please wait..."
+            self.chat_history_id.add_widget(self.tmp_wait)
+            if not self.rag_sess:
+                self.rag_sess = LocalRag(
+                    model_dir=self.model_dir,
+                    config_dir=self.config_dir
+                )
+            Thread(target=self.rag_sess.start_rag_onnx_sess, args=(self.doc_path, self.rag_init_callback), daemon=True).start()
+
+    def rag_file_manager(self):
+        """Open the file manager to select a doc file. On android use Downloads or Documents folders only"""
+        rag_btn = self.root.ids.chatbot_scr.ids.rag_doc
+        if self.rag_ok:
+            self.rag_ok = False
+            rag_btn.icon = "file-document-plus"
+            rag_btn.icon_color = "gray"
+        else:
+            model_name = "all-MiniLM-L6-V2"
+            rag_model_exists = self.check_rag_models(model_name)
+            if self.is_downloading:
+                self.show_toast_msg("Please wait for the current download to be finished!", is_error=True)
+                return
+            if not rag_model_exists:
+                llm_size = self.rag_models[model_name]['size']
+                self.to_download_model = model_name
+                self.model_file_size = f"You need to downlaod the file for the first time (~{llm_size})"
+                self.popup_download_model()
+                #self.show_toast_msg("You need to dowload the model first!") # apply actual logic with popup
+                return
+            try:
+                if self.file_permission:
+                    self.doc_file_manager.show(self.external_storage)
+                else:
+                    self.doc_file_manager.show(self.in_dir)
+                self.is_doc_manager_open = True
+            except Exception as e:
+                self.show_toast_msg(f"Error: {e}", is_error=True)
 
     def set_llm_dropdown(self, stage="post-init"):
         menu_items = []
@@ -230,6 +325,15 @@ class OnLlmApp(MDApp):
         model_tokenizer = os.path.join(path_to_model, "tokenizer.json")
         model_onnx = os.path.join(path_to_model, "onnx", "model_int8.onnx")
         if not os.path.exists(model_config) or not os.path.exists(model_tokenizer) or not os.path.exists(model_onnx):
+            return False
+        else:
+            return True
+
+    def check_rag_models(self, model_name):
+        path_to_model = os.path.join(self.model_dir, f"{model_name}")
+        model_tokenizer = os.path.join(path_to_model, "tokenizer.json")
+        model_onnx = os.path.join(path_to_model, "model.onnx")
+        if not os.path.exists(model_tokenizer) or not os.path.exists(model_onnx):
             return False
         else:
             return True
@@ -334,7 +438,11 @@ class OnLlmApp(MDApp):
         )
         self.chat_history_id.add_widget(self.download_progress)
         model_name = self.to_download_model
-        url = self.llm_models[model_name]['url']
+        embed_model_list = list(self.rag_models.keys())
+        if model_name in embed_model_list:
+            url = self.rag_models[model_name]['url']
+        else:
+            url = self.llm_models[model_name]['url']
         path_to_model = os.path.join(self.model_dir, f"{model_name}.tar.gz")
         self.download_model_file(url, path_to_model, instance)
 
@@ -447,6 +555,22 @@ class OnLlmApp(MDApp):
         self.token_count = int(text)
         self.root.ids.chatbot_scr.ids.token_menu.text = text
 
+    def rag_init_callback(self, check):
+        rag_btn = self.root.ids.chatbot_scr.ids.rag_doc
+        if check:
+            self.rag_ok = True
+            rag_btn.icon = "file-document-remove"
+            rag_btn.icon_color = "orange"
+            self.show_toast_msg("Document processed, you can ask quesions on your DOC")
+        else:
+            self.show_toast_msg("Document processed failed, your answer will be generic", is_error=True)
+        if self.tmp_wait:
+            self.chat_history_id.remove_widget(self.tmp_wait)
+            self.tmp_wait = None
+
+    def rag_qa_callback(self, prompt):
+        self.send_message(button_instance=None, chat_input_widget=None, callback=True, rag_usr_prompt=prompt)
+
     def stop_chat(self):
         self.stop = True
         self.is_llm_running = False
@@ -488,28 +612,53 @@ class OnLlmApp(MDApp):
         usr_msg_label.text = msg_to_add
         self.chat_history_id.add_widget(usr_msg_label)
 
-    def send_message(self, button_instance, chat_input_widget):
+    def send_message(self, button_instance, chat_input_widget, callback=False, rag_usr_prompt=""):
         if self.selected_llm == "":
             self.show_toast_msg("Please select a model first!", is_error=True)
             return
         if self.is_llm_running:
             self.show_toast_msg("Please wait for the current response", is_error=True)
             return
-        user_message = chat_input_widget.text.strip()
+        if callback:
+            user_message = rag_usr_prompt.strip()
+            llm_context = {"role": "system", "content": "You are a helpful assistant that answers questions based on the provided context."}
+            if self.tmp_wait:
+                self.chat_history_id.remove_widget(self.tmp_wait)
+                self.tmp_wait = None
+        else:
+            user_message = chat_input_widget.text.strip()
+            if self.rag_ok:
+                Thread(target=self.rag_sess.get_rag_prompt, args=(user_message,self.rag_qa_callback), daemon=True).start()
+                self.tmp_wait = TempSpinWait()
+                self.tmp_wait.text = "Please wait while reading the doc..."
+                self.chat_history_id.add_widget(self.tmp_wait)
+                #return
+            llm_context = {"role": "system", "content": "You are a helpful assistant."}
+            chat_input_widget.text = ""
         if user_message:
             user_message_add = f"{user_message}"
-            self.messages.append(
-                {
+            if not callback:
+                self.add_usr_message(user_message_add)
+                if self.rag_ok:
+                    # RAG will use the callback method
+                    return
+                self.messages.append(
+                    {
+                        "role": "user",
+                        "content": user_message
+                    }
+                )
+            self.tmp_txt = BotTmpResp()
+            self.chat_history_id.add_widget(self.tmp_txt)
+            msg_to_send = [llm_context]
+            if callback:
+                rag_msg = {
                     "role": "user",
                     "content": user_message
                 }
-            )
-            self.add_usr_message(user_message_add)
-            chat_input_widget.text = "" # blank the input
-            self.tmp_txt = BotTmpResp()
-            self.chat_history_id.add_widget(self.tmp_txt)
-            msg_to_send = [{"role": "system", "content": "You are a helpful assistant."}]
-            msg_to_send.extend(self.messages[-3:]) # taking last three messages only
+                msg_to_send.append(rag_msg)
+            else:
+                msg_to_send.extend(self.messages[-3:]) # taking last three messages only
             ollama_thread = Thread(target=self.chat_with_llm, args=(msg_to_send,), daemon=True)
             ollama_thread.start()
             self.is_llm_running = True
@@ -762,6 +911,19 @@ class OnLlmApp(MDApp):
     def open_link(self, url):
         import webbrowser
         webbrowser.open(url)
+
+    def events(self, instance, keyboard, keycode, text, modifiers):
+        """Handle mobile device button presses (e.g., Android back button)."""
+        if keyboard in (1001, 27):  # Android back button or equivalent
+            if self.is_doc_manager_open:
+                # Check if we are at the root of the directory tree
+                if self.doc_file_manager.current_path == self.external_storage:
+                    self.show_toast_msg(f"Closing file manager from main storage")
+                    self.doc_file_exit_manager()
+                else:
+                    self.doc_file_manager.back()  # Navigate back within file manager
+                return True  # Consume the event to prevent app exit
+        return False
 
 if __name__ == '__main__':
     OnLlmApp().run()

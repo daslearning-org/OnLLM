@@ -12,6 +12,7 @@ logs/
 bin/
 dist/
 build/
+test_codes/
 *.apk
 *.exe
 

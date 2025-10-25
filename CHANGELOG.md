@@ -1,5 +1,9 @@
 ## Changes
 
+### 0.2.0
+- Adding a feature to add `pdf` or `docx` (word document) & ask question on that (Local Offline RAG).
+- Some UI changes.
+
 ### 0.1.2
 - Will not force users to download `smollm2-135m` from welcome screen anymore.
 - Fixing `desktop` models addition in `Android`.

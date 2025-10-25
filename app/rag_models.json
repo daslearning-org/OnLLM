@@ -1,0 +1,8 @@
+{
+    "smollm2-360m": {
+        "name": "all-MiniLM-L6-V2",
+        "url": "https://huggingface.co/daslearning/Embedding-Onnx/resolve/main/onnx/all-MiniLM-L6-V2.tar.gz?download=true",
+        "size": "85MB",
+        "platform": "android"
+    }
+}

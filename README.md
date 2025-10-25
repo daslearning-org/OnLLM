@@ -4,8 +4,9 @@ OnLLM is the platform to run `Large Language Model` (LLM) or SLM models using `O
 > The name is derived from: `On` from Onnx + `LLM`. Our approach is always local & offline first (you will need internet to download the model files for the first time). Arificial Intelligence (AI) to be accesible to everyone.
 
 ### Features
-1. An inbuild chatbot to chat with the AI model(s).
-2. No trackers, no Ads, No data collection, completely Private.
+1. ✅️ An inbuild chatbot to chat with the AI model(s).
+2. ✅️ A local offline RAG to query on our selected document (pdf/docx) directly in the chatbot.
+2. ✅️ No trackers, no Ads, No data collection, completely Private.
 
 [![GitHub Downloads](https://img.shields.io/github/downloads/daslearning-org/OnLLM/total)](https://github.com/daslearning-org/OnLLM/releases)
 [![YouTube Video Views](https://img.shields.io/youtube/views/D-KwL59GgKA)](https://www.youtube.com/watch?v=D-KwL59GgKA)
@@ -18,6 +19,7 @@ You can click on the below Image or this [Youtube Link](https://www.youtube.com/
 To be added...
 
 ## 🧑‍💻 Quickstart Guide
+You may check the [Documentation](https://blog.daslearning.in/llm_ai/genai/onllm.html) to see the detailed steps to use the app.
 
 ### 📱 Download & Run the Android App
 You can check the [Releases](https://github.com/daslearning-org/OnLLM/tags) and downlaod the latest version of the android app (APK file) on your phone.
@@ -108,6 +110,8 @@ pyinstaller desktopApp.spec
 ```
 
 ## 🔗 LLM Models used in this project
+
+### LLM (QA) models:
 The models are being taken from different sources & below are the models available as on today. Size is the compressed size (approax). Few models which are marked with warning (⚠️) symbol may be very slow or unresponsive on `Android` or low power devices.
 
 | Model | Size | Android | Desktop |
@@ -115,3 +119,10 @@ The models are being taken from different sources & below are the models availab
 | [SmolLM2-135M](https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct) | 95MB | ✅️ | ✅️ |
 | [SmolLM2-360M](https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct) | 241MB | ✅️ | ✅️ |
 | [Gemma3-1B](https://huggingface.co/onnx-community/gemma-3-1b-it-ONNX) | 645MB | ⚠️ | ✅️ |
+
+### Embed models (Document RAG):
+It follows the same priciples as above.
+
+| Model | Size | Android | Desktop |
+| :---- | :--- | :-----: | :-----: |
+| [all-MiniLM-L6-V2](https://huggingface.co/onnx-models/all-MiniLM-L6-v2-onnx) | 85MB | ✅️ | ✅️ |
