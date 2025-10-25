@@ -9,12 +9,21 @@ from kivy.clock import Clock
 
 # ================== 1️⃣ TEXT EXTRACTION ==================
 def extract_docx_text(path):
-    doc_txt = docx2txt.process(path)
+    doc_txt = ""
+    try:
+        doc_txt = docx2txt.process(path)
+    except Exception as e:
+        print(f"Error processing docx: {e}")
     return doc_txt
 
 def extract_pdf_text(path):
-    reader = PdfReader(path)
-    return "\n".join(page.extract_text() or "" for page in reader.pages)
+    pdf_txt = ""
+    try:
+        reader = PdfReader(path)
+        pdf_txt = "\n".join(page.extract_text() or " " for page in reader.pages)
+    except Exception as e:
+        print(f"Error processing pdf: {e}")
+    return pdf_txt
 
 def clean_text(text):
     # Looks for a word ending in a hyphen, a newline, and another word.
@@ -153,7 +162,13 @@ class LocalRag:
             text = extract_docx_text(file_path)
         elif file_path.endswith(".pdf"):
             text = extract_pdf_text(file_path)
+        elif file_path.endswith(".pdf.jpg"):
+            text = extract_pdf_text(file_path)
+        elif file_path.endswith(".docx.jpg"):
+            text = extract_docx_text(file_path)
         else:
+            return False
+        if len(text) <= 0:
             return False
         text = clean_text(text)
         # chunk properties

@@ -17,7 +17,6 @@ from kivy.utils import platform
 from kivy.core.clipboard import Clipboard
 from kivy.core.text import LabelBase
 from kivy.clock import Clock
-from plyer import filechooser
 if platform == "android":
     from jnius import autoclass
 
@@ -71,13 +70,14 @@ class OnLlmApp(MDApp):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        #Window.bind(on_keyboard=self.events)
+        Window.bind(on_keyboard=self.events)
         self.process = None
         self.stop = False
         self.decoder_session = None
         self.rag_sess = None
         self.rag_ok = False
         self.doc_path = None
+        self.file_permission = False
         self.selected_llm = ""
         self.to_download_model = "na"
         self.messages = []
@@ -140,7 +140,7 @@ class OnLlmApp(MDApp):
             }
         }
         if platform == "android":
-            from android.permissions import request_permissions, Permission
+            from android.permissions import request_permissions, check_permission, Permission
             sdk_version = 28
             try:
                 VERSION = autoclass('android.os.Build$VERSION')
@@ -149,14 +149,24 @@ class OnLlmApp(MDApp):
                 #self.show_toast_msg(f"Android SDK: {sdk_version}")
             except Exception as e:
                 print(f"Could not check the android SDK version: {e}")
-            #if sdk_version < 30:  # Android 10 & below
-            permissions = [Permission.READ_EXTERNAL_STORAGE]
+            if sdk_version >= 30:  # Android 11+
+                permissions = [Permission.READ_MEDIA_IMAGES]
+            else:
+                permissions = [Permission.READ_EXTERNAL_STORAGE]
             request_permissions(permissions)
+            try:
+                if sdk_version >= 30:
+                    self.file_permission = check_permission(Permission.READ_MEDIA_IMAGES)
+                else:
+                    self.file_permission = check_permission(Permission.READ_EXTERNAL_STORAGE)
+            except Exception as e:
+                print(f"Error while checking sms permission: {e}")
             # paths on android
             context = autoclass('org.kivy.android.PythonActivity').mActivity
             android_path = context.getExternalFilesDir(None).getAbsolutePath()
             self.model_dir = os.path.join(android_path, 'model_files')
             self.op_dir = os.path.join(android_path, 'outputs')
+            self.in_dir = os.path.join(android_path, 'inputs')
             self.config_dir = os.path.join(android_path, 'config')
             self.internal_storage = android_path
             try:
@@ -170,9 +180,12 @@ class OnLlmApp(MDApp):
             self.model_dir = os.path.join(self.user_data_dir, 'model_files')
             self.config_dir = os.path.join(self.user_data_dir, 'config')
             self.op_dir = os.path.join(self.user_data_dir, 'outputs')
+            self.in_dir = os.path.join(self.user_data_dir, 'inputs')
+            self.file_permission = True
         os.makedirs(self.model_dir, exist_ok=True)
         os.makedirs(self.op_dir, exist_ok=True)
         os.makedirs(self.config_dir, exist_ok=True)
+        os.makedirs(self.in_dir, exist_ok=True)
         # update models from local model config
         self.extra_models_config = os.path.join(self.config_dir, 'extra_models.json')
         if os.path.exists(self.extra_models_config):
@@ -219,20 +232,25 @@ class OnLlmApp(MDApp):
         )
         self.root.ids.chatbot_scr.ids.token_menu.text = str(token_sizes[0])
         self.is_doc_manager_open = False
+        self.doc_file_manager = MDFileManager(
+            exit_manager=self.doc_file_exit_manager,
+            select_path=self.select_doc_path,
+            ext=[".pdf", ".docx", ".jpg"],  # Restrict to doc files
+            selector="file",  # Restrict to selecting files only
+            preview=False,
+            #show_hidden_files=True,
+        )
         print("Initialisation is successful")
 
     def doc_file_exit_manager(self, instance=None):
         self.is_doc_manager_open = False
+        self.doc_file_manager.close()
 
     def select_doc_path(self, path):
         self.doc_file_exit_manager()
         if path:
-            Clock.schedule_once(lambda dt: self.doc_selection_processing(path))
-
-    def doc_selection_processing(self, path):
-        if path:
-            self.doc_path = str(path[0])
-            print(f"\n**Selected doc path: {self.doc_path} & full path list {path}") # debug
+            self.doc_path = path
+            print(f"\n**Selected doc path: {self.doc_path}") # debug
             self.tmp_wait = TempSpinWait()
             self.tmp_wait.text = "Analyzing the doc, please wait..."
             self.chat_history_id.add_widget(self.tmp_wait)
@@ -264,13 +282,10 @@ class OnLlmApp(MDApp):
                 #self.show_toast_msg("You need to dowload the model first!") # apply actual logic with popup
                 return
             try:
-                filechooser.open_file(
-                    on_selection=self.select_doc_path,
-                    filters=[
-                        "*.pdf",
-                        "*.docx"
-                    ]
-                )
+                if self.file_permission:
+                    self.doc_file_manager.show(self.external_storage)
+                else:
+                    self.doc_file_manager.show(self.in_dir)
                 self.is_doc_manager_open = True
             except Exception as e:
                 self.show_toast_msg(f"Error: {e}", is_error=True)
@@ -895,6 +910,19 @@ class OnLlmApp(MDApp):
     def open_link(self, url):
         import webbrowser
         webbrowser.open(url)
+
+    def events(self, instance, keyboard, keycode, text, modifiers):
+        """Handle mobile device button presses (e.g., Android back button)."""
+        if keyboard in (1001, 27):  # Android back button or equivalent
+            if self.is_doc_manager_open:
+                # Check if we are at the root of the directory tree
+                if self.doc_file_manager.current_path == self.external_storage:
+                    self.show_toast_msg(f"Closing file manager from main storage")
+                    self.doc_file_exit_manager()
+                else:
+                    self.doc_file_manager.back()  # Navigate back within file manager
+                return True  # Consume the event to prevent app exit
+        return False
 
 if __name__ == '__main__':
     OnLlmApp().run()
