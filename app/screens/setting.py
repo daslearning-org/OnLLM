@@ -38,6 +38,7 @@ Builder.load_string('''
                     pos: self.pos
 
             MDScrollView:
+                adaptive_height: True
                 MDList:
                     id: delete_model_list
                     # Items will be added here

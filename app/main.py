@@ -142,7 +142,7 @@ class OnLlmApp(MDApp):
         }
         if platform == "android":
             from android.permissions import request_permissions, check_permission, Permission
-            sdk_version = 28
+            sdk_version = 33
             try:
                 VERSION = autoclass('android.os.Build$VERSION')
                 sdk_version = VERSION.SDK_INT
@@ -150,13 +150,13 @@ class OnLlmApp(MDApp):
                 #self.show_toast_msg(f"Android SDK: {sdk_version}")
             except Exception as e:
                 print(f"Could not check the android SDK version: {e}")
-            if sdk_version >= 30:  # Android 11+
+            if sdk_version >= 33:  # Android 13+
                 permissions = [Permission.READ_MEDIA_IMAGES]
             else:
                 permissions = [Permission.READ_EXTERNAL_STORAGE]
-            request_permissions(permissions)
             try:
-                if sdk_version >= 30:
+                request_permissions(permissions)
+                if sdk_version >= 33:
                     self.file_permission = check_permission(Permission.READ_MEDIA_IMAGES)
                 else:
                     self.file_permission = check_permission(Permission.READ_EXTERNAL_STORAGE)
