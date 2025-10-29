@@ -87,6 +87,7 @@ cd OnLLM/app/
 python3.11 -m venv .env # create python virtual environment
 source .env/bin/activate
 pip install -r req_android.txt
+pip install https://github.com/kivy/buildozer/archive/master.zip # for android 15
 
 # build the android apk
 buildozer android debug # this may take a good amount of time for the first time & will generate the apk in the bin directory
