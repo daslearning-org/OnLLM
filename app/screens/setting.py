@@ -73,8 +73,8 @@ class SettingsBox(MDBoxLayout):
         if platform == "android":
             try:
                 from android.display_cutout import get_height_of_bar
-                self.top_pad = int(get_height_of_bar('status')) + 4
-                self.bottom_pad = int(get_height_of_bar('navigation')) + 4
+                self.top_pad = int(get_height_of_bar('status'))
+                self.bottom_pad = int(get_height_of_bar('navigation'))
             except Exception as e:
                 print(f"Failed android 15 padding: {e}")
                 self.top_pad = 32
