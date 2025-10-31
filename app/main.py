@@ -48,7 +48,7 @@ from docRag import LocalRag
 Window.softinput_mode = "below_target"
 
 ## Global definitions
-__version__ = "0.2.1" # The APP version
+__version__ = "0.2.2" # The APP version
 
 # Determine the base path for your application's resources
 if getattr(sys, 'frozen', False):
@@ -140,6 +140,7 @@ class OnLlmApp(MDApp):
                 "platform": "android"
             }
         }
+        file_m_height = 1
         if platform == "android":
             from android.permissions import request_permissions, check_permission, Permission
             sdk_version = 33
@@ -161,8 +162,10 @@ class OnLlmApp(MDApp):
                 else:
                     self.file_permission = check_permission(Permission.READ_EXTERNAL_STORAGE)
             except Exception as e:
-                print(f"Error while checking sms permission: {e}")
+                print(f"Error while dealing with permissions: {e}")
             # paths on android
+            if sdk_version >= 35: # Android edge cutout
+                file_m_height = 0.9
             context = autoclass('org.kivy.android.PythonActivity').mActivity
             android_path = context.getExternalFilesDir(None).getAbsolutePath()
             self.model_dir = os.path.join(android_path, 'model_files')
@@ -239,6 +242,7 @@ class OnLlmApp(MDApp):
             ext=[".pdf", ".docx", ".jpg"],  # Restrict to doc files
             selector="file",  # Restrict to selecting files only
             preview=False,
+            size_hint_y = file_m_height, #0.9 for andoird cut out problem
             #show_hidden_files=True,
         )
         print("Initialisation is successful")
@@ -466,7 +470,7 @@ class OnLlmApp(MDApp):
                 font_style = "Subtitle1" # change size for android
             ),
             md_bg_color=bg_color,
-            y=dp(24),
+            y=dp(64),
             pos_hint={"center_x": 0.5},
             duration=duration
         ).open()
@@ -918,7 +922,7 @@ class OnLlmApp(MDApp):
             if self.is_doc_manager_open:
                 # Check if we are at the root of the directory tree
                 if self.doc_file_manager.current_path == self.external_storage:
-                    self.show_toast_msg(f"Closing file manager from main storage")
+                    self.show_toast_msg("File manager is closed")
                     self.doc_file_exit_manager()
                 else:
                     self.doc_file_manager.back()  # Navigate back within file manager
