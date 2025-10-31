@@ -14,6 +14,7 @@ from kivy.uix.widget import Widget
 from kivy.lang import Builder
 from kivy.metrics import dp, sp
 from kivy.properties import StringProperty, NumericProperty, ObjectProperty
+from kivy.utils import platform
 
 # local imports
 from .myrst import MyRstDocument
@@ -165,7 +166,7 @@ Builder.load_string('''
 
     MDBoxLayout: # main box
         orientation: 'vertical'
-        #padding: 8, 0, 8, 0 # left, top, right, bottom
+        padding: 0, root.top_pad, 0, root.bottom_pad # left, top, right, bottom
         #spacing: dp(4)
 
         MDBoxLayout: # top button group
@@ -298,7 +299,18 @@ class BotResp(MDBoxLayout):
 
 class ChatbotScreen(MDScreen):
     noto_path = StringProperty()
+    top_pad = NumericProperty(0)
+    bottom_pad = NumericProperty(0)
     def __init__(self, noto=noto_font, **kwargs):
         super().__init__(**kwargs)
         self.name = 'chatbot_screen'
         self.noto_path = noto
+        if platform == "android":
+            try:
+                from android.display_cutout import get_height_of_bar
+                self.top_pad = int(get_height_of_bar('status'))
+                self.bottom_pad = int(get_height_of_bar('navigation'))
+            except Exception as e:
+                print(f"Failed android 15 padding: {e}")
+                self.top_pad = 32
+                self.bottom_pad = 48

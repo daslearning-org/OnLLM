@@ -1,5 +1,8 @@
 ## Changes
 
+### 0.2.1
+- Fixing the edge cut out problem on android 15.
+
 ### 0.2.0
 - Adding a feature to add `pdf` or `docx` (word document) & ask question on that (Local Offline RAG).
 - Some UI changes.
