@@ -144,6 +144,7 @@ class OnLlmApp(MDApp):
         if platform == "android":
             from android.permissions import request_permissions, check_permission, Permission
             sdk_version = 33
+            file_m_height = 0.9
             try:
                 VERSION = autoclass('android.os.Build$VERSION')
                 sdk_version = VERSION.SDK_INT
@@ -164,8 +165,6 @@ class OnLlmApp(MDApp):
             except Exception as e:
                 print(f"Error while dealing with permissions: {e}")
             # paths on android
-            if sdk_version >= 35: # Android edge cutout
-                file_m_height = 0.9
             context = autoclass('org.kivy.android.PythonActivity').mActivity
             android_path = context.getExternalFilesDir(None).getAbsolutePath()
             self.model_dir = os.path.join(android_path, 'model_files')
