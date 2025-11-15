@@ -22,7 +22,10 @@ To be added...
 You may check the [Documentation](https://blog.daslearning.in/llm_ai/genai/onllm.html) to see the detailed steps to use the app.
 
 ### 📱 Download & Run the Android App
-You can check the [Releases](https://github.com/daslearning-org/OnLLM/tags) and downlaod the latest version of the android app (APK file) on your phone.
+Get the app from [Google PlayStore](https://play.google.com/store/apps/details?id=in.daslearning.onllm&pcampaignid=web_share) <br>
+[![Google-Play](./docs/images/google_play.svg)](https://play.google.com/store/apps/details?id=in.daslearning.onllm&pcampaignid=web_share) <br>
+
+You can check the [Releases](https://github.com/daslearning-org/OnLLM/tags) and downlaod the latest version of the android app (APK file) on your phone if you do not want to get it from PlayStore.
 
 ### 💻 Download & Run the Windows or Linux App
 You can check the [Releases](https://github.com/daslearning-org/OnLLM/releases) and downlaod the latest version of the application on your computer. If you are on `Windows`, download the `OnLLM_X.X.X.exe` file & double click to run it. If you are on `Linux`, download `OnLLM_Linux_XXX` file and run it.
