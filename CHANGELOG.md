@@ -1,5 +1,8 @@
 ## Changes
 
+### 0.2.2
+- Fixing the edge cut out problem for file manager.
+
 ### 0.2.1
 - Fixing the edge cut out problem on android 15.
 
