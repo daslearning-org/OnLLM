@@ -541,17 +541,23 @@ class OnLlmApp(MDApp):
         self.llm_menu.dismiss()
         check_model = self.check_model_files(text_item)
         llm_size = self.llm_models[text_item]['size']
+        llm_platform = self.llm_models[text_item]['platform']
         if not check_model:
             if self.is_downloading:
                 self.show_toast_msg("Please wait for the current download to finish", is_error=True, duration=2)
                 return
             self.to_download_model = text_item
-            self.model_file_size = f"You need to downlaod the file for the first time (~{llm_size})"
+            if llm_platform == "warn" and platform == "android":
+                self.model_file_size = f"This model can be slow or unresponsive on Android. You can still downlaod the model file & try on your device, size: (~{llm_size})"
+            else:
+                self.model_file_size = f"You need to downlaod the file for the first time (~{llm_size})"
             self.popup_download_model()
             return
         self.selected_llm = text_item
         self.root.ids.chatbot_scr.ids.llm_menu.text = self.selected_llm
         self.init_onnx_sess(self.selected_llm)
+        if llm_platform == "warn" and platform == "android":
+            self.show_toast_msg("This model may be slow on Android!", is_error=True, duration=2)
 
     def token_menu_callback(self, text):
         self.token_menu.dismiss()

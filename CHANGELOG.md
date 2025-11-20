@@ -2,6 +2,7 @@
 
 ### 0.2.2
 - Fixing the edge cut out problem for file manager.
+- Will show a warning for the models which are slow on Android.
 
 ### 0.2.1
 - Fixing the edge cut out problem on android 15.
