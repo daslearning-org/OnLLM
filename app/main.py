@@ -41,14 +41,14 @@ from m2r2 import convert
 from screens.myrst import MyRstDocument
 from screens.chatbot_screen import TempSpinWait, ChatbotScreen, BotResp, BotTmpResp, UsrResp
 from screens.welcome import WelcomeScreen
-from screens.setting import DeleteModelItems, SettingsBox
+from screens.setting import DeleteModelItems, SettingsBox, ThemeChangeBtn
 from docRag import LocalRag
 
 # IMPORTANT: Set this property for keyboard behavior
 Window.softinput_mode = "below_target"
 
 ## Global definitions
-__version__ = "0.2.2" # The APP version
+__version__ = "0.3.0" # The APP version
 
 # Determine the base path for your application's resources
 if getattr(sys, 'frozen', False):
@@ -86,6 +86,7 @@ class OnLlmApp(MDApp):
     def build(self):
         self.theme_cls.primary_palette = "Blue"
         self.theme_cls.accent_palette = "Orange"
+        self.theme_cls.theme_style = "Light" # "Light" # "Dark"
         self.top_menu_items = {
             "Settings": {
                 "icon": "wrench",
@@ -191,6 +192,7 @@ class OnLlmApp(MDApp):
         os.makedirs(self.in_dir, exist_ok=True)
         # update models from local model config
         self.extra_models_config = os.path.join(self.config_dir, 'extra_models.json')
+        self.ui_config_file = os.path.join(self.config_dir, "ui.json")
         if os.path.exists(self.extra_models_config):
             with open(self.extra_models_config, "r") as modelfile:
                 model_json_obj = json.load(modelfile)
@@ -229,7 +231,7 @@ class OnLlmApp(MDApp):
         ]
         # token size menu
         self.token_menu = MDDropdownMenu(
-            md_bg_color="#bdc6b0",
+            #md_bg_color="#bdc6b0",
             caller=self.root.ids.chatbot_scr.ids.token_menu,
             items=token_drop_items,
         )
@@ -244,6 +246,24 @@ class OnLlmApp(MDApp):
             size_hint_y = file_m_height, #0.9 for andoird cut out problem
             #show_hidden_files=True,
         )
+        # theme
+        self.theme_changer = ThemeChangeBtn(
+            text = "Change to Dark",
+            icon_text = "moon-waning-crescent"
+        )
+        if os.path.exists(self.ui_config_file):
+            with open(self.ui_config_file, "r") as uifile:
+                ui_obj = json.load(uifile)
+            self.theme_cls.theme_style = ui_obj.get('theme_style', 'Light')
+        else:
+            ui_appear = {
+                "theme_style": "Light"
+            }
+            with open(self.ui_config_file, "w") as uifile:
+                json.dump(ui_appear, uifile)
+        appearance_setter = self.root.ids.settings_scr.ids.appearance_setter
+        appearance_setter.add_widget(self.theme_changer)
+        Clock.schedule_once(lambda dt: self.theme_sync())
         print("Initialisation is successful")
 
     def doc_file_exit_manager(self, instance=None):
@@ -308,7 +328,7 @@ class OnLlmApp(MDApp):
             menu_items.append(tmp_menu)
         # model menu
         self.llm_menu = MDDropdownMenu(
-            md_bg_color="#bdc6b0",
+            #md_bg_color="#bdc6b0",
             caller=self.root.ids.chatbot_scr.ids.llm_menu,
             items=[],
         )
@@ -920,6 +940,35 @@ class OnLlmApp(MDApp):
     def open_link(self, url):
         import webbrowser
         webbrowser.open(url)
+
+    def theme_sync(self):
+        # change the buttons
+        if self.theme_cls.theme_style == "Light":
+            self.theme_changer.text = "Change to Dark"
+            self.theme_changer.icon_text = "moon-waning-crescent"
+        else:
+            self.theme_changer.text = "Change to Light"
+            self.theme_changer.icon_text = "weather-sunny"
+        # change the config file
+        if os.path.exists(self.ui_config_file):
+            with open(self.ui_config_file, "r") as uifile:
+                ui_obj = json.load(uifile)
+            ui_obj['theme_style'] = self.theme_cls.theme_style
+            with open(self.ui_config_file, "w") as uifile:
+                json.dump(ui_obj, uifile)
+        else:
+            ui_appear = {
+                "theme_style": self.theme_cls.theme_style
+            }
+            with open(self.ui_config_file, "w") as uifile:
+                json.dump(ui_appear, uifile)
+
+    def change_theme(self, instance=None):
+        if self.theme_cls.theme_style == "Light":
+            self.theme_cls.theme_style = "Dark"
+        else:
+            self.theme_cls.theme_style = "Light"
+        Clock.schedule_once(lambda dt: self.theme_sync())
 
     def events(self, instance, keyboard, keycode, text, modifiers):
         """Handle mobile device button presses (e.g., Android back button)."""

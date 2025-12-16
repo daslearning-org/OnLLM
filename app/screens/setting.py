@@ -12,6 +12,7 @@ from kivy.utils import platform
 # local imports
 
 Builder.load_string('''
+#:import parse_color kivy.parser.parse_color
 
 <DeleteModelItems@OneLineAvatarIconListItem>:
     IconLeftWidget:
@@ -19,8 +20,13 @@ Builder.load_string('''
     IconRightWidget:
         icon: "delete"
         on_release: app.init_delete_model(root.text)
-        theme_text_color: "Custom"
-        text_color: "gray"
+        #theme_text_color: "Custom"
+        #text_color: "gray"
+
+<ThemeChangeBtn>:
+    on_release: app.change_theme(self)
+    IconLeftWidget:
+        icon: root.icon_text
 
 <SettingsBox>:
     orientation: 'vertical'
@@ -32,18 +38,23 @@ Builder.load_string('''
         AccordionItem:
             title: "Delete model files"
             spacing: dp(8)
-            canvas.before:
-                Color:
-                    rgba: 168, 183, 191, 1
-                RoundedRectangle:
-                    size: self.width, self.height
-                    pos: self.pos
 
             MDScrollView:
                 adaptive_height: True
                 MDList:
                     id: delete_model_list
-                    # Items will be added here
+                    # Items (llm models) will be added here
+
+        AccordionItem:
+            title: "Appearance (Theme)"
+            spacing: dp(8)
+
+            MDScrollView:
+                adaptive_height: True
+
+                MDList:
+                    id: appearance_setter
+                    # UI settings elements will be added here
 
     MDBoxLayout: # Input box with Send button
         size_hint_y: 0.1
@@ -63,6 +74,11 @@ Builder.load_string('''
 
 class DeleteModelItems(OneLineAvatarIconListItem):
     pass
+
+class ThemeChangeBtn(OneLineIconListItem):
+    """ Theme Changer Action """
+    icon_text = StringProperty("")
+    id = StringProperty("")
 
 class SettingsBox(MDBoxLayout):
     """ The main settings box which contains the setting, help & other required sections """
