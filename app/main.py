@@ -456,8 +456,6 @@ class OnLlmApp(MDApp):
             font_style = "Subtitle1",
             halign = 'left',
             adaptive_height = True,
-            theme_text_color = "Custom",
-            text_color = "#f7f7f5"
         )
         self.chat_history_id.add_widget(self.download_progress)
         model_name = self.to_download_model
