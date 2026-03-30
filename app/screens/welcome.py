@@ -55,7 +55,7 @@ Builder.load_string('''
             halign: 'center'
             adaptive_height: True
             markup: True
-            text: "You can select your local [i][b]PDF[/b][/i] or [i][b]DOCX[/b][/i] file to ask questions on the document. [b]On Android,[/b] you need to change the file extention from [i][b][color=#f58e2f].pdf[/color][/b][/i] to [i][b][color=#1c5c23].pdf.jpg[/color][/b][/i] & same for [i][b][color=#f58e2f].docx[/color][/b][/i] to [i][b][color=#1c5c23].docx.jpg[/color][/b][/i] before select from the app (due to permission issues)."
+            text: "You can select your local [i][b]PDF[/b][/i] or [i][b]DOCX[/b][/i] file to ask questions on the document. [b]On Android,[/b] you need to change the file extention from [i][b][color=#f58e2f].pdf[/color][/b][/i] to [i][b][color=#1c5c23].pdf.jpg[/color][/b][/i] & same for [i][b][color=#f58e2f].docx[/color][/b][/i] to [i][b][color=#1c5c23].docx.jpg[/color][/b][/i] (due to permission issues). AI Can make mistakes, please double check the fact."
 
         MDLabel:
             id: download_stat
