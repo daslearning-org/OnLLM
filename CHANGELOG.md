@@ -1,5 +1,8 @@
 ## Changes
 
+### 0.3.1
+- Increasing API level to Android 16.
+
 ### 0.3.0
 - Now user can set the app theme from Settings.
 - Changed the drop-downs with flat button. [ui only change]
