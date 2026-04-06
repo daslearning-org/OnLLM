@@ -21,3 +21,7 @@ It is complete Private and Privacy focused.
 📌 You can store your documents (.pdf.jpg / .docx.jpg) in "Downloads" or "Pictures" or any subfolders under this two folders.
 
 ✉️ For any support or query, please use the "Contact Us" option from the App itself.
+
+## Get the app
+The easiest way for Android users is to scan the below QR or this [PlayStore Link](https://play.google.com/store/apps/details?id=in.daslearning.onllm) to install directly from Google play-store. You can still download the direct `APK` or Desktop versions from here. <br>
+<img width="300" height="373" alt="app-qr" src="https://github.com/user-attachments/assets/c6a3f777-d3fa-41fa-888c-38bc7f0dd3fe" />
