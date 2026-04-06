@@ -1,7 +1,15 @@
 ## Changes
 
+### 0.3.1
+- Increasing API level to Android 16.
+
+### 0.3.0
+- Now user can set the app theme from Settings.
+- Changed the drop-downs with flat button. [ui only change]
+
 ### 0.2.2
 - Fixing the edge cut out problem for file manager.
+- Will show a warning for the models which are slow on Android.
 
 ### 0.2.1
 - Fixing the edge cut out problem on android 15.

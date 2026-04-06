@@ -8,7 +8,7 @@ from kivymd.uix.label import MDLabel
 from kivymd.uix.spinner import MDSpinner
 from kivymd.uix.textfield import MDTextField
 from kivymd.uix.dropdownitem import MDDropDownItem
-from kivymd.uix.button import MDIconButton, MDFillRoundFlatButton, MDFillRoundFlatIconButton, MDFloatingActionButton
+from kivymd.uix.button import MDIconButton, MDFillRoundFlatButton, MDFillRoundFlatIconButton, MDFloatingActionButton, MDRectangleFlatIconButton
 
 from kivy.uix.widget import Widget
 from kivy.lang import Builder
@@ -42,8 +42,6 @@ Builder.load_string('''
         text: root.text
         font_style: "Subtitle1"
         adaptive_width: True
-        theme_text_color: "Custom"
-        text_color: "#f7f7f5"
 
     MDSpinner:
         size_hint: None, None
@@ -77,6 +75,8 @@ Builder.load_string('''
         allow_selection: True,
         allow_copy: True,
         padding: 8
+        theme_text_color: "Custom"
+        text_color: "black"
 
 <BotResp>:
     orientation: 'vertical'
@@ -138,6 +138,8 @@ Builder.load_string('''
         valign: 'top'
         halign: 'left'
         padding: 8
+        theme_text_color: "Custom"
+        text_color: "black"
 
     MDBoxLayout:
         orientation: 'horizontal'
@@ -190,38 +192,44 @@ Builder.load_string('''
                 pos_hint: {'center_y': 0.5}
                 on_release: app.new_chat()
 
-            MDDropDownItem:
-                #md_bg_color: "#bdc6b0"
-                on_release: app.llm_menu.open()
-                text: "Model"
+            MDRectangleFlatIconButton:
                 id: llm_menu
-                font_size: sp(14)
+                icon: "robot"
+                text: "Model"
+                theme_text_color: "Custom"
+                text_color: "black"
+                theme_icon_color: "Custom"
+                icon_color: "black"
+                line_color: 0, 0, 0, 0
+                font_size: sp(10)
                 pos_hint: {'center_y': 0.5}
+                on_release: app.llm_menu.open()
 
-            MDDropDownItem:
-                #md_bg_color: "#bdc6b0"
-                on_release: app.token_menu.open()
-                text: "Length"
+            MDRectangleFlatIconButton:
                 id: token_menu
-                font_size: sp(14)
+                icon: "tape-measure"
+                text: "Length"
+                theme_text_color: "Custom"
+                text_color: "black"
+                theme_icon_color: "Custom"
+                icon_color: "black"
+                line_color: 0, 0, 0, 0
+                font_size: sp(10)
                 pos_hint: {'center_y': 0.5}
+                on_release: app.token_menu.open()
 
             Widget:
                 size_hint_x: 1
 
             MDIconButton:
                 icon: "menu"
+                theme_text_color: "Custom"
+                text_color: "black"
                 on_release: app.menu_bar_callback(self)
 
         MDScrollView: # chat history section with scroll enabled
-            size_hint_y: 0.7 # Takes the 70%
+            size_hint_y: 0.7 # Takes the 70% # 262625: dark
             adaptive_height: True
-            canvas.before:
-                Color:
-                    rgb: parse_color('#262625')
-                Rectangle:
-                    size: self.width, self.height
-                    pos: self.pos
 
             # all chats will be added under this box
             MDBoxLayout:
@@ -238,12 +246,6 @@ Builder.load_string('''
             spacing: dp(5)
             padding: 8, 4, 8, 8 # left, top, right, bottom
             adaptive_height: True
-            canvas.before:
-                Color:
-                    rgb: parse_color('#262625')
-                Rectangle:
-                    size: self.width, self.height
-                    pos: self.pos
 
             MDIconButton:
                 id: rag_doc
@@ -265,6 +267,8 @@ Builder.load_string('''
                 input_type: 'text'
                 keyboard_suggestions: True
                 font_size: sp(16)
+                fill_color_focus: "#fcfcfc"
+                hint_text_color_focus: "gray"
 
             MDIconButton:
                 icon: "send"
